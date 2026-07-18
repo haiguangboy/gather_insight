@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/candidate.schema.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["card_id", "type", "content", "evidence", "stage_c_decision", "source"],
+    "properties": {
+      "card_id": {"type": "string"},
+      "type": {"enum": ["fact", "claim", "boundary", "prediction", "derived_insight", "external_expression"]},
+      "content": {"type": "string"},
+      "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+      "stage_c_decision": {"enum": ["pending", "accept", "drop", "edit"]},
+      "source": {"enum": ["media_interview", "system_derived", "external_expression"]}
+    },
+    "additionalProperties": true
+  }
+}

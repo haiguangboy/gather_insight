@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gather-insight"
+version = "0.1.0"
+description = "Frontier Signal & Judgment System"
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML>=6.0",
+  "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+gather-insight = "gather_insight.cli:main"
+
+[tool.setuptools]
+packages = ["gather_insight", "gather_insight.pipeline", "gather_insight.adapters"]
+

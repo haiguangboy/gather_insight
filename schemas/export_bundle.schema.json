@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/export_bundle.schema.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["source_namespace", "media_id", "evidence_id", "card_id", "type", "content", "evidence"],
+    "properties": {
+      "source_namespace": {"const": "media"},
+      "media_id": {"type": "string"},
+      "evidence_id": {"type": "string"},
+      "card_id": {"type": "string"},
+      "type": {"type": "string"},
+      "content": {"type": "string"},
+      "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+    },
+    "additionalProperties": true
+  }
+}

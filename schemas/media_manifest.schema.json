@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/media_manifest.schema.json",
+  "type": "object",
+  "required": ["schema_version", "media_id", "media_type", "source_url", "participants", "topics", "source_resolution", "processing"],
+  "properties": {
+    "schema_version": {"const": "media_manifest_v1"},
+    "media_id": {"type": "string", "pattern": "^(yt_[A-Za-z0-9_-]+|web_.+)$"},
+    "media_type": {"enum": ["youtube_video", "web_page"]},
+    "title": {"type": ["string", "null"]},
+    "source_url": {"type": "string", "format": "uri"},
+    "video_id": {"type": ["string", "null"]},
+    "channel": {"type": ["string", "null"]},
+    "participants": {"type": "array", "items": {"type": "object", "required": ["name", "role"], "properties": {"name": {"type": "string"}, "role": {"type": "string"}}, "additionalProperties": false}},
+    "topics": {"type": "array", "items": {"type": "string"}},
+    "source_resolution": {"type": "object", "required": ["primary_provider", "checked"], "properties": {"primary_provider": {"type": "string"}, "primary_url": {"type": ["string", "null"]}, "checked": {"type": "object"}}, "additionalProperties": true},
+    "processing": {"type": "object", "required": ["status", "transcript_language", "speaker_mode", "created_at", "updated_at"], "properties": {"status": {"type": "string"}, "transcript_language": {"type": "string"}, "speaker_mode": {"type": "string"}, "created_at": {"type": "string"}, "updated_at": {"type": "string"}}, "additionalProperties": true}
+  },
+  "additionalProperties": true
+}
