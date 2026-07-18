@@ -2,7 +2,7 @@
 
 GatherInsight is an evidence-first pipeline for turning long-form interviews, podcasts, speeches, and official transcripts into traceable media evidence packages. It keeps source text, evidence, candidate judgments, and accepted knowledge separate.
 
-The implemented scope is Phase 0/1 of [`gather_insight_system_spec.md`](gather_insight_system_spec.md): baseline fixtures, schemas, manual Markdown ingest, deterministic evidence construction, validation, and a human review gate.
+The implemented scope is Phase 0/1/2 of [`gather_insight_system_spec.md`](gather_insight_system_spec.md): baseline fixtures, schemas, deterministic ingest, human review boundaries, source-priority resolution, VTT/SRT import, and structured diagnostics.
 
 ## Quick start
 
@@ -10,12 +10,13 @@ The implemented scope is Phase 0/1 of [`gather_insight_system_spec.md`](gather_i
 python3 -m gather_insight ingest \
   --url "https://www.youtube.com/watch?v=x2VHFgyawPE" \
   --transcript-file tests/fixtures/manual_transcript.md \
-  --provider manual_markdown \
   --title "Example interview" \
   --participant "Guest Name"
 ```
 
-The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence.jsonl`, `review.md`, and `processing_report.json`. Re-running the same input is idempotent. A changed source is rejected unless `--force-source` is explicit, and an existing human `review.md` is never overwritten.
+The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence.jsonl`, `review.md`, `processing_report.json`, and a per-run JSONL log. Re-running the same input is data-idempotent while every run receives a unique `run_id`. A changed source is rejected unless `--force-source` is explicit, and an existing human `review.md` is never overwritten.
+
+`--provider auto` is the default. It checks `--official-file`, `--ulisten-file`, `--usetranscribe-file`, `--transcript-file`, and `--youtube-export-file` in source-policy order. `resolve-sources` performs the checks without ingesting. URL-only hints are recorded but require a human export before they can become the selected text source.
 
 ## Manual transcript format
 
@@ -40,4 +41,3 @@ python3 -m unittest discover -s tests -v
 ```
 
 No audio, video, Whisper, database, login automation, or paid API is required.
-

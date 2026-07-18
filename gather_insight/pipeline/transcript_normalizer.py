@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from html import unescape
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,12 @@ _RANGE = re.compile(
     r"(?P<end>\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(?:\])?"
 )
 _STAMP = re.compile(r"(?:\[)?(?P<stamp>\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(?:\])?")
+_VTT_RANGE = re.compile(
+    r"(?P<start>\d{1,2}:\d{2}(?::\d{2})?[.,]\d+)\s*-->\s*"
+    r"(?P<end>\d{1,2}:\d{2}(?::\d{2})?[.,]\d+)"
+)
+_VOICE = re.compile(r"<v(?:\.[^ >]+)?\s+([^>]+)>", re.IGNORECASE)
+_TAG = re.compile(r"<[^>]+>")
 
 
 def parse_timestamp(value: str) -> float:
@@ -123,6 +130,56 @@ def parse_markdown(text: str) -> list[TranscriptSegment]:
 def load_markdown(path: Path) -> tuple[str, list[TranscriptSegment]]:
     raw = path.read_text(encoding="utf-8")
     return raw, parse_markdown(raw)
+
+
+def parse_caption_text(text: str) -> list[TranscriptSegment]:
+    """Parse WebVTT or SRT captions without retaining cue identifiers."""
+    lines = text.replace("\ufeff", "").splitlines()
+    segments: list[TranscriptSegment] = []
+    index = 0
+    while index < len(lines):
+        match = _VTT_RANGE.search(lines[index])
+        if not match:
+            index += 1
+            continue
+        start = parse_timestamp(match.group("start").replace(",", "."))
+        end = parse_timestamp(match.group("end").replace(",", "."))
+        index += 1
+        cue_lines: list[str] = []
+        while index < len(lines) and lines[index].strip():
+            cue_lines.append(lines[index].strip())
+            index += 1
+        raw_cue = " ".join(cue_lines)
+        voice = _VOICE.search(raw_cue)
+        speaker = unescape(voice.group(1).strip()) if voice else "unknown"
+        cleaned = unescape(_TAG.sub("", raw_cue))
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if cleaned:
+            segments.append(TranscriptSegment(start, end, cleaned, speaker))
+    if not segments:
+        raise ValueError("no caption cues found")
+    return _deduplicate_caption_segments(segments)
+
+
+def _deduplicate_caption_segments(segments: list[TranscriptSegment]) -> list[TranscriptSegment]:
+    result: list[TranscriptSegment] = []
+    for segment in segments:
+        if result and segment.text == result[-1].text and segment.speaker == result[-1].speaker:
+            previous = result[-1]
+            result[-1] = TranscriptSegment(previous.start_seconds, max(previous.end_seconds, segment.end_seconds), previous.text, previous.speaker, previous.section)
+        else:
+            result.append(segment)
+    return result
+
+
+def load_transcript(path: Path, transcript_format: str | None = None) -> tuple[str, list[TranscriptSegment]]:
+    raw = path.read_text(encoding="utf-8")
+    selected_format = transcript_format or path.suffix.lower().lstrip(".")
+    if selected_format in {"markdown", "md", "txt"}:
+        return raw, parse_markdown(raw)
+    if selected_format in {"vtt", "srt"}:
+        return raw, parse_caption_text(raw)
+    raise ValueError(f"unsupported transcript format: {selected_format}")
 
 
 def _speaker_confidence(speaker: str) -> tuple[float, str]:

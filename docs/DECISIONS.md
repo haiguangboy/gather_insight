@@ -24,3 +24,14 @@ Status: accepted, 2026-07-18.
 
 Manual speaker labels receive confidence `0.75`; unknown labels receive `0.0`. High-value cards will require later human review instead of inheriting false certainty from transcript formatting.
 
+## ADR-005 — Structured per-run logs with credential-safe context
+
+Status: accepted, 2026-07-19.
+
+Every CLI execution gets a unique `run_id`. Source resolution and ingest share the same append-only JSONL event stream, which is copied into the media package once the media ID is known. Runtime logs are locally retained but Git-ignored; the processing report keeps stable pointers and the final status.
+
+## ADR-006 — Phase 2 adapters may return URL-only availability
+
+Status: accepted, 2026-07-19.
+
+Official transcript, uListen, and UseTranscribe pages may be unstable or unsuitable for automatic text scraping. An adapter can therefore report `url_only`. Resolution continues to a lower-priority local source, while the manifest preserves the higher-quality URL for later manual import.

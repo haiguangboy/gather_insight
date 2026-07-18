@@ -2,10 +2,11 @@ import unittest
 from pathlib import Path
 
 from gather_insight.pipeline.evidence_builder import format_timestamp, youtube_timestamp_url
-from gather_insight.pipeline.transcript_normalizer import chunk_segments, load_markdown, parse_markdown, parse_timestamp
+from gather_insight.pipeline.transcript_normalizer import chunk_segments, load_markdown, load_transcript, parse_markdown, parse_timestamp
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "manual_transcript.md"
+VTT_FIXTURE = Path(__file__).parent / "fixtures" / "youtube_export.vtt"
 
 
 class TranscriptTests(unittest.TestCase):
@@ -31,6 +32,13 @@ class TranscriptTests(unittest.TestCase):
         segments = parse_markdown("[00:10] Guest: First.\n[00:25] Guest: Second.")
         self.assertEqual(segments[0].end_seconds, 25)
         self.assertEqual(segments[1].end_seconds, 40)
+
+    def test_vtt_voice_labels_and_unknown_speaker(self):
+        _, segments = load_transcript(VTT_FIXTURE, "vtt")
+        self.assertEqual(len(segments), 3)
+        self.assertEqual(segments[0].speaker, "Host")
+        self.assertEqual(segments[1].speaker, "Guest")
+        self.assertEqual(segments[2].speaker, "unknown")
 
 
 if __name__ == "__main__":

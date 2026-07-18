@@ -13,8 +13,46 @@
     "channel": {"type": ["string", "null"]},
     "participants": {"type": "array", "items": {"type": "object", "required": ["name", "role"], "properties": {"name": {"type": "string"}, "role": {"type": "string"}}, "additionalProperties": false}},
     "topics": {"type": "array", "items": {"type": "string"}},
-    "source_resolution": {"type": "object", "required": ["primary_provider", "checked"], "properties": {"primary_provider": {"type": "string"}, "primary_url": {"type": ["string", "null"]}, "checked": {"type": "object"}}, "additionalProperties": true},
-    "processing": {"type": "object", "required": ["status", "transcript_language", "speaker_mode", "created_at", "updated_at"], "properties": {"status": {"type": "string"}, "transcript_language": {"type": "string"}, "speaker_mode": {"type": "string"}, "created_at": {"type": "string"}, "updated_at": {"type": "string"}}, "additionalProperties": true}
+    "source_resolution": {
+      "type": "object",
+      "required": ["primary_provider", "checked"],
+      "properties": {
+        "primary_provider": {"enum": ["official_transcript", "ulisten", "usetranscribe", "manual_markdown", "youtube_export"]},
+        "primary_url": {"type": ["string", "null"]},
+        "checked": {
+          "type": "object",
+          "properties": {
+            "official_transcript": {"$ref": "#/$defs/sourceCheck"},
+            "ulisten": {"$ref": "#/$defs/sourceCheck"},
+            "usetranscribe": {"$ref": "#/$defs/sourceCheck"},
+            "manual_markdown": {"$ref": "#/$defs/sourceCheck"},
+            "youtube_export": {"$ref": "#/$defs/sourceCheck"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "processing": {"type": "object", "required": ["status", "transcript_language", "speaker_mode", "created_at", "updated_at"], "properties": {"status": {"type": "string"}, "transcript_language": {"type": "string"}, "speaker_mode": {"type": "string"}, "created_at": {"type": "string"}, "updated_at": {"type": "string"}, "last_run_id": {"type": "string"}}, "additionalProperties": true}
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "sourceCheck": {
+      "type": "object",
+      "required": ["provider", "status", "available", "has_local_content"],
+      "properties": {
+        "provider": {"type": "string"},
+        "priority": {"type": "integer", "minimum": 1},
+        "status": {"enum": ["ready", "url_only", "failed", "not_configured"]},
+        "available": {"type": "boolean"},
+        "has_local_content": {"type": "boolean"},
+        "source_type": {"type": "string"},
+        "transcript_format": {"type": ["string", "null"]},
+        "file": {"type": ["string", "null"]},
+        "url": {"type": ["string", "null"]},
+        "message": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
 }

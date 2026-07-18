@@ -22,7 +22,9 @@ class IngestTests(unittest.TestCase):
             review = media_dir / "review.md"
             review.write_text(review.read_text(encoding="utf-8") + "\nHuman note.\n", encoding="utf-8")
             second = ingest_media(url=URL, transcript_file=FIXTURE, provider="manual_markdown", output_root=root)
-            self.assertEqual(first, second)
+            self.assertNotEqual(first["run_id"], second["run_id"])
+            self.assertEqual(first["media_id"], second["media_id"])
+            self.assertEqual(first["evidence_count"], second["evidence_count"])
             self.assertEqual(evidence_before, (media_dir / "evidence.jsonl").read_text(encoding="utf-8"))
             self.assertIn("Human note.", review.read_text(encoding="utf-8"))
             records = [json.loads(line) for line in evidence_before.splitlines()]
@@ -38,6 +40,9 @@ class IngestTests(unittest.TestCase):
                 ingest_media(url=URL, transcript_file=changed, provider="manual_markdown", output_root=root)
             report = json.loads((root / "yt_x2VHFgyawPE" / "processing_report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["status"], "failed")
+            media_logs = list((root / "yt_x2VHFgyawPE" / "logs").glob("*.jsonl"))
+            self.assertTrue(media_logs)
+            self.assertIn('"event":"ingest.failed"', "".join(path.read_text(encoding="utf-8") for path in media_logs))
 
     def test_human_manifest_fields_survive_repeat_ingest(self):
         with tempfile.TemporaryDirectory() as directory:

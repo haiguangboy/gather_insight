@@ -9,4 +9,6 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 tmp/
-
+logs/*.jsonl
+data/media/**/logs/*.jsonl
+data/media/_logs/*.jsonl
