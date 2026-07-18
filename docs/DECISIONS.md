@@ -47,3 +47,9 @@ The supplied fixture JSONL mixes manifest, chapter, and segment records. Product
 Status: accepted, 2026-07-19.
 
 Phase 6.6 keeps the YC workflow unchanged and adds a separate general source-combination state machine. If uListen and both text sources are present, uListen remains the structure source and the official transcript becomes the text source. If no uListen exists but official and UseTranscribe are both present, `official_single` is selected and UseTranscribe is recorded as unused. UseTranscribe-only output remains anonymous and carries a separate speaker-review status rather than marking all readable text as generally unreviewed.
+
+## ADR-009 — Fixture provenance is a record-level publication gate
+
+Status: accepted, 2026-07-19.
+
+General transcript records carry `source_is_fixture`, and fixture-specific `text_source` values remain distinct from production sources. This keeps readable fixtures useful for parser and workflow tests without allowing downstream evidence or publication code to treat them as production provenance. Dual-source diagnostics remain aggregate output, while only the cross-speaker secondary-segment reuse condition changes record review state.

@@ -1,5 +1,6 @@
 import json
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from gather_insight.adapters.ulisten_parser import UlistenSegment, parse_ulisten_file
@@ -79,6 +80,22 @@ class TranscriptFuserTests(unittest.TestCase):
 
     def test_similarity_removes_spaces_and_punctuation(self):
         self.assertEqual(normalized_text_similarity("Hello,world!", "Hello world"), 1.0)
+
+    def test_reused_secondary_across_speakers_is_reviewed_and_diagnosed(self):
+        first = replace(structure("Shared readable text."), speaker="Alice", segment_id=f"{MEDIA_ID}.seg_0001")
+        second = replace(structure("Shared readable text."), speaker="Bob", segment_id=f"{MEDIA_ID}.seg_0002")
+        shared = secondary("Shared readable text.")
+        unused = replace(secondary("Unused text.", 30, 40), segment_id=f"{MEDIA_ID}.secondary_0002")
+
+        result = fuse_transcripts(structure_segments=[first, second], text_segments=[shared, unused])
+
+        self.assertIsNotNone(result.diagnostics)
+        self.assertEqual(result.diagnostics.secondary_segment_reuse_count, 1)
+        self.assertEqual(result.diagnostics.cross_speaker_boundary_count, 1)
+        self.assertEqual(result.diagnostics.adjacent_text_duplication_rate, 1.0)
+        self.assertEqual(result.diagnostics.unconsumed_secondary_segment_count, 1)
+        self.assertTrue(all(segment.needs_review for segment in result.segments))
+        self.assertTrue(all("secondary_segment_reused_across_speakers" in segment.review_reasons for segment in result.segments))
 
 
 if __name__ == "__main__":

@@ -57,7 +57,7 @@ def _review_queue(records: list[dict[str, object]]) -> str:
             f"## {record['segment_id']}", "",
             f"- timestamp: `{_time(float(record['start_seconds']))}`",
             f"- reasons: `{', '.join(record.get('review_reasons', []))}`",
-            f"- youtube_url: <{record['youtube_url']}>`,".rstrip(","), "",
+            f"- youtube_url: <{record['youtube_url']}>", "",
             str(record["text"]), "",
         ])
     if not review:
@@ -95,6 +95,7 @@ def _report(records: list[dict[str, object]], metadata: dict[str, Any]) -> str:
         f"- text_review_count: `{sum(bool(record.get('needs_review')) for record in records)}`",
         f"- speaker_review_count: `{sum(bool(record.get('speaker_needs_review')) for record in records)}`",
         f"- numeric_alignment_confidence_count: `{len(confidences)}`",
+        f"- fusion_diagnostics: `{json.dumps(metadata.get('fusion_diagnostics'), ensure_ascii=False)}`",
         f"- sources: `{json.dumps(metadata.get('sources', {}), ensure_ascii=False)}`",
         "",
         "## Limitations",
@@ -124,4 +125,3 @@ def write_general_outputs(*, output_dir: Path, records: list[dict[str, object]],
     paths["speaker_review_queue"].write_text(_speaker_review_queue(records), encoding="utf-8")
     paths["fusion_manifest"].write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {key: str(path) for key, path in paths.items()}
-

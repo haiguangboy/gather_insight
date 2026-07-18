@@ -101,6 +101,7 @@ def _alignment_report(*, result: FusionResult, metadata: dict[str, Any]) -> str:
         f"- numeric_confidence_count: `{len(confidence)}`",
         f"- alignment_confidence_min: `{min(confidence) if confidence else None}`",
         f"- alignment_confidence_max: `{max(confidence) if confidence else None}`",
+        f"- fusion_diagnostics: `{json.dumps(result.diagnostics.as_dict() if result.diagnostics else None, ensure_ascii=False)}`",
         f"- chapter_retention: `{metadata.get('chapter_count', len(chapters))}/{metadata.get('chapter_count', len(chapters))}`",
         f"- speaker_retention: `{len(speakers)}/{metadata.get('speaker_count', len(speakers))}`",
         "",
@@ -157,4 +158,3 @@ def write_fusion_outputs(*, output_dir: Path, result: FusionResult, metadata: di
         "review_queue": str(review_path),
         "fusion_manifest": str(manifest_path),
     }
-

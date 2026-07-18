@@ -53,3 +53,5 @@ In `text_single`:
 ## Fixture safety
 
 The Dario fixture is a UseTranscribe-format developer fixture built from the public YouTube caption baseline. Its manifest marks `fixture_flags.usetranscribe: true`, so output uses `text_source: usetranscribe_format_fixture`. It must not be cited as an actual UseTranscribe export.
+
+Phase 6.6.1 extends this contract with record-level `source_is_fixture`, an official fixture-specific text source, canonical YouTube ID validation, and dual-source diagnostic counters. See `docs/PHASE_6_6_1.md`.

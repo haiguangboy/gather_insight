@@ -38,7 +38,7 @@ def _manifest(input_dir: Path) -> dict[str, Any]:
     return value
 
 
-def _generic_record(*, segment_id: str, media_id: str, speaker: str | None, chapter: str | None, chapter_index: int | None, start: float, end: float, text: str, youtube_url: str, mode: str, structure_source: str, text_source: str, text_ulisten_raw: str | None = None, text_usetranscribe_raw: str | None = None, text_official_raw: str | None = None, needs_review: bool = False, review_reasons: list[str] | None = None, speaker_needs_review: bool = False, speaker_status: str | None = None, speaker_review_reasons: list[str] | None = None, structure_status: str = "source_provided", alignment_method: str = "single_source_no_alignment", alignment_confidence: float | None = None, alignment_components: dict[str, float] | None = None, conflicts: list[dict[str, object]] | None = None, reference_url: str | None = None) -> dict[str, object]:
+def _generic_record(*, segment_id: str, media_id: str, speaker: str | None, chapter: str | None, chapter_index: int | None, start: float, end: float, text: str, youtube_url: str, mode: str, structure_source: str, text_source: str, source_is_fixture: bool = False, text_ulisten_raw: str | None = None, text_usetranscribe_raw: str | None = None, text_official_raw: str | None = None, needs_review: bool = False, review_reasons: list[str] | None = None, speaker_needs_review: bool = False, speaker_status: str | None = None, speaker_review_reasons: list[str] | None = None, structure_status: str = "source_provided", alignment_method: str = "single_source_no_alignment", alignment_confidence: float | None = None, alignment_components: dict[str, float] | None = None, conflicts: list[dict[str, object]] | None = None, reference_url: str | None = None) -> dict[str, object]:
     return {
         "segment_id": segment_id,
         "media_id": media_id,
@@ -54,6 +54,7 @@ def _generic_record(*, segment_id: str, media_id: str, speaker: str | None, chap
         "text_official_raw": text_official_raw,
         "structure_source": structure_source,
         "text_source": text_source,
+        "source_is_fixture": source_is_fixture,
         "alignment_method": alignment_method,
         "alignment_confidence": alignment_confidence,
         "alignment_components": alignment_components,
@@ -70,7 +71,7 @@ def _generic_record(*, segment_id: str, media_id: str, speaker: str | None, chap
     }
 
 
-def _from_fused(segment: FusedSegment, *, mode: str, text_source: str, official: bool = False) -> dict[str, object]:
+def _from_fused(segment: FusedSegment, *, mode: str, text_source: str, official: bool = False, source_is_fixture: bool = False) -> dict[str, object]:
     record = segment.as_dict()
     selected_text_source = text_source if segment.text_source == "usetranscribe_manual_export" else segment.text_source
     if official:
@@ -84,6 +85,7 @@ def _from_fused(segment: FusedSegment, *, mode: str, text_source: str, official:
     record.update({
         "fusion_mode": mode,
         "text_source": selected_text_source,
+        "source_is_fixture": source_is_fixture,
         "speaker_needs_review": False,
         "speaker_status": "source_provided",
         "speaker_review_reasons": [],
@@ -113,6 +115,7 @@ def _single_records(segments: list[UseTranscribeSegment] | list[OfficialTranscri
             mode=mode,
             structure_source=structure_source,
             text_source=text_source,
+            source_is_fixture=fixture,
             text_usetranscribe_raw=text if not is_official else None,
             text_official_raw=text if is_official else None,
             speaker_needs_review=speaker is None,
@@ -163,6 +166,12 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
     input_hashes_before: dict[str, str] = {}
     resolution: TranscriptCombinationResolution | None = None
     try:
+        parsed_video_id = media_id.removeprefix("yt_") if media_id.startswith("yt_") else None
+        if canonical_id and canonical_id != parsed_video_id:
+            raise GeneralTranscriptWorkflowError(
+                "canonical_youtube_video_id does not match youtube_url video_id: "
+                f"{canonical_id!r} != {parsed_video_id!r}"
+            )
         resolution = resolve_transcript_combination(input_dir=input_dir, fixture_flags=fixture_flags, logger=logger)
         if resolution.fusion_mode == "failed":
             raise GeneralTranscriptWorkflowError("all transcript sources are missing")
@@ -185,15 +194,21 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
         if resolution.sources["official_transcript"].available:
             parsed_official = parse_official_transcript_file(path=resolution.sources["official_transcript"].path, media_id=media_id, youtube_url=youtube_url)
 
+        fusion_diagnostics = None
         if resolution.fusion_mode == "dual_source":
             fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=parsed_use.segments)
-            records = [_from_fused(segment, mode="dual_source", text_source="usetranscribe_manual_export") for segment in fused.segments]
+            source_fixture = resolution.sources["usetranscribe"].is_fixture
+            records = [_from_fused(segment, mode="dual_source", text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", source_is_fixture=source_fixture) for segment in fused.segments]
+            fusion_diagnostics = fused.diagnostics.as_dict() if fused.diagnostics else None
         elif resolution.fusion_mode == "official_dual":
             fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=parsed_official.segments)
-            records = [_from_fused(segment, mode="official_dual", text_source="official_transcript", official=True) for segment in fused.segments]
+            source_fixture = resolution.sources["official_transcript"].is_fixture
+            records = [_from_fused(segment, mode="official_dual", text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for segment in fused.segments]
+            fusion_diagnostics = fused.diagnostics.as_dict() if fused.diagnostics else None
         elif resolution.fusion_mode == "structure_degraded":
             fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=None)
-            records = [_from_fused(segment, mode="structure_degraded", text_source="ulisten_raw_degraded") for segment in fused.segments]
+            source_fixture = resolution.sources["ulisten"].is_fixture
+            records = [_from_fused(segment, mode="structure_degraded", text_source="ulisten_raw_degraded", source_is_fixture=source_fixture) for segment in fused.segments]
             for record in records:
                 record["needs_review"] = True
                 record["review_reasons"] = ["secondary_source_missing"]
@@ -201,14 +216,15 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
                 record["text_status"] = "raw_structure_only"
         elif resolution.fusion_mode == "text_single":
             source_fixture = resolution.sources["usetranscribe"].is_fixture
-            records = _single_records(parsed_use.segments, mode="text_single", text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", structure_source="text_timeline")
+            records = _single_records(parsed_use.segments, mode="text_single", text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", structure_source="text_timeline", fixture=source_fixture)
         else:  # official_single
             source_fixture = resolution.sources["official_transcript"].is_fixture
-            records = _single_records(parsed_official.segments, mode="official_single", text_source="official_transcript", structure_source="official_transcript", fixture=source_fixture)
+            records = _single_records(parsed_official.segments, mode="official_single", text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", structure_source="official_transcript", fixture=source_fixture)
         metadata = _resolution_metadata(resolution, media_id=media_id, youtube_url=youtube_url, input_dir=input_dir, fixture_flags=fixture_flags)
         metadata["limitations"] = list(dict.fromkeys(metadata["limitations"] + list(manifest.get("fixture_limitations") or [])))
         metadata["segment_count"] = len(records)
         metadata["speaker_review_count"] = sum(bool(record["speaker_needs_review"]) for record in records)
+        metadata["fusion_diagnostics"] = fusion_diagnostics
         outputs = write_general_outputs(output_dir=output_dir, records=records, metadata=metadata, fused_schema_path=Path(__file__).parents[2] / "schemas" / "transcript_fused.schema.json")
         input_hashes_after = {name: _sha256(input_dir / name) for name in input_hashes_before}
         if input_hashes_before != input_hashes_after:
@@ -218,6 +234,7 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
             "segment_count": len(records), "text_review_count": sum(bool(record["needs_review"]) for record in records),
             "speaker_review_count": sum(bool(record["speaker_needs_review"]) for record in records),
             "alignment_confidence_count": sum(record["alignment_confidence"] is not None for record in records),
+            "fusion_diagnostics": fusion_diagnostics,
             "input_hashes_before": input_hashes_before, "input_hashes_after": input_hashes_after,
             "outputs": outputs, "logs": logger.log_paths,
         }

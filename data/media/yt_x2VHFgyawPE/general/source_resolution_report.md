@@ -8,6 +8,7 @@
 - text_review_count: `0`
 - speaker_review_count: `5`
 - numeric_alignment_confidence_count: `0`
+- fusion_diagnostics: `null`
 - sources: `{"ulisten": {"provider": "ulisten", "filename": "source_ulisten_raw.md", "path": "tests/fixtures/dario_bloomberg_text_single/source_ulisten_raw.md", "status": "missing", "available": false, "is_fixture": false}, "usetranscribe": {"provider": "usetranscribe", "filename": "source_usetranscribe_raw.md", "path": "tests/fixtures/dario_bloomberg_text_single/source_usetranscribe_raw.md", "status": "fixture", "available": true, "is_fixture": true}, "official_transcript": {"provider": "official_transcript", "filename": "source_official_transcript_raw.md", "path": "tests/fixtures/dario_bloomberg_text_single/source_official_transcript_raw.md", "status": "missing", "available": false, "is_fixture": false}}`
 
 ## Limitations

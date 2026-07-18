@@ -43,5 +43,6 @@
     "usetranscribe": true
   },
   "segment_count": 5,
-  "speaker_review_count": 5
+  "speaker_review_count": 5,
+  "fusion_diagnostics": null
 }

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from difflib import SequenceMatcher
 from typing import Iterable
 
@@ -40,6 +41,7 @@ class FusedSegment:
     conflicts: list[dict[str, object]]
     youtube_url: str
     fusion_mode: str
+    matched_secondary_segment_ids: list[str] | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -68,9 +70,26 @@ class FusedSegment:
 
 
 @dataclass(frozen=True)
+class FusionDiagnostics:
+    secondary_segment_reuse_count: int
+    cross_speaker_boundary_count: int
+    adjacent_text_duplication_rate: float
+    unconsumed_secondary_segment_count: int
+
+    def as_dict(self) -> dict[str, int | float]:
+        return {
+            "secondary_segment_reuse_count": self.secondary_segment_reuse_count,
+            "cross_speaker_boundary_count": self.cross_speaker_boundary_count,
+            "adjacent_text_duplication_rate": self.adjacent_text_duplication_rate,
+            "unconsumed_secondary_segment_count": self.unconsumed_secondary_segment_count,
+        }
+
+
+@dataclass(frozen=True)
 class FusionResult:
     mode: str
     segments: list[FusedSegment]
+    diagnostics: FusionDiagnostics | None = None
 
 
 def normalize_for_similarity(text: str) -> str:
@@ -203,7 +222,51 @@ def _degraded(structure: UlistenSegment, mode: str, fixture_text: str | None = N
         conflicts=[],
         youtube_url=structure.youtube_url,
         fusion_mode=mode,
+        matched_secondary_segment_ids=None,
     )
+
+
+def _diagnose_secondary_usage(fused: list[FusedSegment], text_segments: list[UseTranscribeSegment]) -> tuple[list[FusedSegment], FusionDiagnostics]:
+    usage: dict[str, list[int]] = defaultdict(list)
+    for index, segment in enumerate(fused):
+        for secondary_id in segment.matched_secondary_segment_ids or []:
+            usage[secondary_id].append(index)
+
+    reused_across_speakers = {
+        secondary_id
+        for secondary_id, indexes in usage.items()
+        if len({fused[index].speaker for index in indexes}) > 1
+    }
+    if reused_across_speakers:
+        reviewed: list[FusedSegment] = []
+        for segment in fused:
+            if reused_across_speakers.intersection(segment.matched_secondary_segment_ids or []):
+                reasons = list(dict.fromkeys(segment.review_reasons + ["secondary_segment_reused_across_speakers"]))
+                segment = replace(segment, needs_review=True, review_reasons=reasons)
+            reviewed.append(segment)
+        fused = reviewed
+
+    cross_speaker_boundary_count = 0
+    adjacent_duplicate_count = 0
+    adjacent_pair_count = max(0, len(fused) - 1)
+    for left, right in zip(fused, fused[1:]):
+        shared_secondary = bool(set(left.matched_secondary_segment_ids or []).intersection(right.matched_secondary_segment_ids or []))
+        if left.speaker != right.speaker and shared_secondary:
+            cross_speaker_boundary_count += 1
+        normalized_left = normalize_for_similarity(left.text)
+        normalized_right = normalize_for_similarity(right.text)
+        if normalized_left and normalized_left == normalized_right:
+            adjacent_duplicate_count += 1
+
+    consumed = set(usage)
+    all_secondary = {segment.segment_id for segment in text_segments}
+    diagnostics = FusionDiagnostics(
+        secondary_segment_reuse_count=len(reused_across_speakers),
+        cross_speaker_boundary_count=cross_speaker_boundary_count,
+        adjacent_text_duplication_rate=round(adjacent_duplicate_count / adjacent_pair_count, 4) if adjacent_pair_count else 0.0,
+        unconsumed_secondary_segment_count=len(all_secondary - consumed),
+    )
+    return fused, diagnostics
 
 
 def fuse_transcripts(*, structure_segments: list[UlistenSegment], text_segments: list[UseTranscribeSegment] | None, tolerance_seconds: float = 3.0, fixture_texts: dict[str, str] | None = None) -> FusionResult:
@@ -258,8 +321,10 @@ def fuse_transcripts(*, structure_segments: list[UlistenSegment], text_segments:
             conflicts=conflicts,
             youtube_url=structure.youtube_url,
             fusion_mode="dual_source",
+            matched_secondary_segment_ids=[segment.segment_id for segment in matches],
         ))
-    return FusionResult("dual_source", fused)
+    fused, diagnostics = _diagnose_secondary_usage(fused, text_segments)
+    return FusionResult("dual_source", fused, diagnostics)
 
 
 def fused_as_dicts(result: FusionResult) -> list[dict[str, object]]:

@@ -74,6 +74,7 @@ class GeneralSourceModeTests(unittest.TestCase):
             self.assertTrue(all(record["speaker_needs_review"] for record in records))
             self.assertTrue(all(record["needs_review"] is False for record in records))
             self.assertTrue(all(record["alignment_confidence"] is None for record in records))
+            self.assertTrue(all(record["source_is_fixture"] is True for record in records))
             self.assertTrue(all(record["text_status"] == "readable" for record in records))
             self.assertTrue(all(record["youtube_url"].startswith(YOUTUBE_URL + "&t=") for record in records))
             self.assertEqual([record["segment_id"] for record in records], [f"{MEDIA_ID}.seg_{index:04d}" for index in range(1, 6)])
@@ -108,6 +109,9 @@ class GeneralSourceModeTests(unittest.TestCase):
             record = json.loads((root / "data" / MEDIA_ID / "general" / "transcript_fused.jsonl").read_text(encoding="utf-8"))
             self.assertTrue(record["needs_review"])
             self.assertIsNone(record["alignment_confidence"])
+            review_queue = (root / "data" / MEDIA_ID / "general" / "review_queue.md").read_text(encoding="utf-8")
+            self.assertIn(f"- youtube_url: <{YOUTUBE_URL}&t=0s>", review_queue)
+            self.assertNotIn(">`", review_queue)
 
     def test_official_single_can_preserve_source_speaker(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -122,6 +126,44 @@ class GeneralSourceModeTests(unittest.TestCase):
             self.assertEqual(record["speaker"], "Dario Amodei")
             self.assertFalse(record["speaker_needs_review"])
             self.assertIsNone(record["alignment_confidence"])
+            self.assertFalse(record["source_is_fixture"])
+
+    def test_official_single_fixture_provenance_is_explicit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            fixture_manifest = json.loads(manifest())
+            fixture_manifest["fixture_flags"] = {"official_transcript": True}
+            (input_dir / "manifest.json").write_text(json.dumps(fixture_manifest), encoding="utf-8")
+            (input_dir / "source_official_transcript_raw.md").write_text(official(), encoding="utf-8")
+
+            run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", logger=RunLogger("test-general", root / "global.jsonl", "official_single_fixture"))
+
+            record = json.loads((root / "data" / MEDIA_ID / "general" / "transcript_fused.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(record["fusion_mode"], "official_single")
+            self.assertEqual(record["text_source"], "official_transcript_format_fixture")
+            self.assertTrue(record["source_is_fixture"])
+            self.assertIsNone(record["alignment_confidence"])
+
+    def test_official_dual_fixture_provenance_is_explicit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            fixture_manifest = json.loads(manifest())
+            fixture_manifest["fixture_flags"] = {"official_transcript": True}
+            (input_dir / "manifest.json").write_text(json.dumps(fixture_manifest), encoding="utf-8")
+            (input_dir / "source_ulisten_raw.md").write_text(ulisten(), encoding="utf-8")
+            (input_dir / "source_official_transcript_raw.md").write_text("## [0:00-0:10] Narrator\n\nHello from structure.\n", encoding="utf-8")
+
+            report = run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", logger=RunLogger("test-general", root / "global.jsonl", "official_dual_fixture"))
+
+            record = json.loads((root / "data" / MEDIA_ID / "general" / "transcript_fused.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(record["fusion_mode"], "official_dual")
+            self.assertEqual(record["text_source"], "official_transcript_format_fixture")
+            self.assertTrue(record["source_is_fixture"])
+            self.assertEqual(report["fusion_diagnostics"]["secondary_segment_reuse_count"], 0)
 
     def test_dual_modes_keep_ulisten_speaker_and_compute_confidence(self):
         cases = [
@@ -142,6 +184,31 @@ class GeneralSourceModeTests(unittest.TestCase):
                 self.assertEqual(record["speaker"], "Host")
                 self.assertFalse(record["speaker_needs_review"])
                 self.assertIsNotNone(record["alignment_confidence"])
+                self.assertEqual(set(report["fusion_diagnostics"]), {
+                    "secondary_segment_reuse_count",
+                    "cross_speaker_boundary_count",
+                    "adjacent_text_duplication_rate",
+                    "unconsumed_secondary_segment_count",
+                })
+
+    def test_manifest_video_id_mismatch_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            mismatch = json.loads(manifest())
+            mismatch["canonical_youtube_video_id"] = "differentVideoId"
+            (input_dir / "manifest.json").write_text(json.dumps(mismatch), encoding="utf-8")
+            (input_dir / "source_usetranscribe_raw.md").write_text(use(), encoding="utf-8")
+
+            with self.assertRaisesRegex(GeneralTranscriptWorkflowError, "canonical_youtube_video_id does not match youtube_url video_id"):
+                run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", logger=RunLogger("test-general", root / "global.jsonl", "id_mismatch"))
+
+            report = json.loads((root / "data" / MEDIA_ID / "general" / "processing_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "failed")
+            self.assertEqual(report["fusion_mode"], "failed")
+            self.assertIn("differentVideoId", report["error"])
+            self.assertIn("x2VHFgyawPE", report["error"])
 
     def test_all_sources_missing_returns_failed_report(self):
         with tempfile.TemporaryDirectory() as directory:
