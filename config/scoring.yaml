@@ -1,0 +1,10 @@
+schema_version: scoring_v1
+relevance:
+  high: 3
+  medium: 2
+  low: 1
+quality_warnings:
+  low_speaker_confidence: 0.8
+  max_evidence_seconds: 60
+  max_quote_characters: 500
+

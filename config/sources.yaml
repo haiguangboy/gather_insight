@@ -1,0 +1,19 @@
+schema_version: source_config_v1
+priority:
+  - official_transcript
+  - ulisten
+  - usetranscribe
+  - manual_markdown
+  - youtube_export
+providers:
+  official_transcript:
+    source_type: official_transcript
+  ulisten:
+    source_type: third_party_transcript
+  usetranscribe:
+    source_type: third_party_transcript
+  manual_markdown:
+    source_type: manual_transcript
+  youtube_export:
+    source_type: youtube_caption
+

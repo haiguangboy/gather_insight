@@ -1,0 +1,9 @@
+schema_version: topic_registry_v1
+topics:
+  - theme_id: ai_implementation_to_judgment
+    name: AI 解除实现瓶颈后，价值向判断、交付和责任迁移
+    status: active
+  - theme_id: ai_software_company_bottlenecks
+    name: 软件实现能力商品化后的公司瓶颈迁移
+    status: active
+

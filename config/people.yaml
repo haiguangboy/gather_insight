@@ -1,0 +1,7 @@
+schema_version: people_registry_v1
+people:
+  - name: Dario Amodei
+    organizations: [Anthropic]
+    roles: [CEO]
+    tracked_topics: [ai_capabilities, software_engineering, jobs, ai_safety]
+
