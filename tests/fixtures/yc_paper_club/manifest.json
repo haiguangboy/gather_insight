@@ -1,0 +1,31 @@
+{
+  "schema_version": "gather_insight_fusion_fixture_v1",
+  "media_id": "yt_wE1ZgJdt4uM",
+  "canonical_youtube_video_id": "wE1ZgJdt4uM",
+  "title": "Inference, Diffusion, World Models, and More | YC Paper Club",
+  "channel": "Y Combinator",
+  "youtube_url": "https://www.youtube.com/watch?v=wE1ZgJdt4uM",
+  "ulisten_source": {
+    "acquisition_method": "manual_browser_copy",
+    "local_file": "source_ulisten_raw.md",
+    "claimed_page_url": "https://ulisten.ai/channels/y-combinator/how-to-build-an-ai-native-services-company_gSNFJbgoaHI/transcript",
+    "provider_page_id": "gSNFJbgoaHI",
+    "warning": "The supplied uListen URL slug/provider ID does not match the canonical YouTube video ID. Never use the uListen suffix as the media primary key."
+  },
+  "secondary_source": {
+    "production_provider": "usetranscribe",
+    "page_url": "https://www.usetranscribe.io/yt/wE1ZgJdt4uM/ai-inference-models",
+    "required_manual_file": "source_usetranscribe_raw.md",
+    "present_in_fixture": false,
+    "fixture_substitute": "text_readable_fixture generated from uListen raw text"
+  },
+  "fixture_limitations": [
+    "This bundle does not contain a fetched full UseTranscribe export.",
+    "Readable text is a deterministic spacing-reconstruction fixture.",
+    "Do not use fixture wording as a publication-grade verbatim quote.",
+    "Production fusion must replace the readable fixture with the manually exported UseTranscribe markdown."
+  ],
+  "chapter_count": 7,
+  "segment_count": 115,
+  "generated_at": "2026-07-18T22:11:56.679995+00:00"
+}

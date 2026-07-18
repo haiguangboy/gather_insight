@@ -35,3 +35,9 @@ Every CLI execution gets a unique `run_id`. Source resolution and ingest share t
 Status: accepted, 2026-07-19.
 
 Official transcript, uListen, and UseTranscribe pages may be unstable or unsuitable for automatic text scraping. An adapter can therefore report `url_only`. Resolution continues to a lower-priority local source, while the manifest preserves the higher-quality URL for later manual import.
+
+## ADR-007 — Production fused JSONL is segment-only
+
+Status: accepted, 2026-07-19.
+
+The supplied fixture JSONL mixes manifest, chapter, and segment records. Production `transcript_fused.jsonl` contains only segment records so downstream evidence code can stream it without record-type branching. Aggregate metadata is written to `alignment_report.md` and `transcript_fused.md`.
