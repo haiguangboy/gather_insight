@@ -1,0 +1,26 @@
+{
+  "status": "ok",
+  "run_id": "20260718T224404Z_44d3a359",
+  "media_id": "yt_wE1ZgJdt4uM",
+  "fusion_mode": "degraded",
+  "segment_count": 115,
+  "review_count": 115,
+  "alignment_confidence_count": 0,
+  "input_hashes_before": {
+    "source_ulisten_raw.md": "1c2131f4bea69e96d145fe244f525c589b6994f8faa8427675593554d17a84b6"
+  },
+  "input_hashes_after": {
+    "source_ulisten_raw.md": "1c2131f4bea69e96d145fe244f525c589b6994f8faa8427675593554d17a84b6"
+  },
+  "outputs": {
+    "transcript_fused_jsonl": "data/media/yt_wE1ZgJdt4uM/fusion/transcript_fused.jsonl",
+    "transcript_fused_markdown": "data/media/yt_wE1ZgJdt4uM/fusion/transcript_fused.md",
+    "alignment_report": "data/media/yt_wE1ZgJdt4uM/fusion/alignment_report.md",
+    "review_queue": "data/media/yt_wE1ZgJdt4uM/fusion/review_queue.md",
+    "fusion_manifest": "data/media/yt_wE1ZgJdt4uM/fusion/fusion_manifest.json"
+  },
+  "logs": [
+    "logs/gather_insight.jsonl",
+    "data/media/yt_wE1ZgJdt4uM/logs/20260718T224404Z_44d3a359.jsonl"
+  ]
+}

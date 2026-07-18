@@ -18,6 +18,25 @@ The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence
 
 `--provider auto` is the default. It checks `--official-file`, `--ulisten-file`, `--usetranscribe-file`, `--transcript-file`, and `--youtube-export-file` in source-policy order. `resolve-sources` performs the checks without ingesting. URL-only hints are recorded but require a human export before they can become the selected text source.
 
+## Dual-source fusion
+
+For the YC Paper Club fixture:
+
+```bash
+python3 -m gather_insight fuse-transcript \
+  --input-dir tests/fixtures/yc_paper_club
+```
+
+With the supplied bundle this intentionally runs degraded mode: no real `source_usetranscribe_raw.md` exists, so all `alignment_confidence` values remain `null`. To test the declared spacing fixture explicitly:
+
+```bash
+python3 -m gather_insight fuse-transcript \
+  --input-dir tests/fixtures/yc_paper_club \
+  --use-fixture
+```
+
+Outputs are written under `data/media/<media_id>/fusion/`: `transcript_fused.jsonl`, `transcript_fused.md`, `alignment_report.md`, `review_queue.md`, `fusion_manifest.json`, and `processing_report.json`.
+
 ## Manual transcript format
 
 ```markdown

@@ -48,3 +48,4 @@ python3 -m json.tool data/media/MEDIA_ID/processing_report.json
 
 The logger records counts, paths, provider states, hashes, and exception diagnostics. It does not record transcript bodies. URL query strings are removed except the public YouTube `v` identifier. Token-, secret-, password-, authorization-, and cookie-shaped fields are replaced with `<redacted>`.
 
+Dual-source fusion additionally emits `fusion.started`, `fusion.ulisten_parsed`, `fusion.usetranscribe_parsed`, `fusion.degraded_mode`, `fusion.fixture_mode`, `fusion.completed`, and `fusion.failed`. The processing report records input hashes before and after the run so accidental raw-source modification can be diagnosed.

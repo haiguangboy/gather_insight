@@ -1,0 +1,22 @@
+{
+  "schema_version": "gather_insight_fusion_v1",
+  "media_id": "yt_wE1ZgJdt4uM",
+  "canonical_youtube_video_id": "wE1ZgJdt4uM",
+  "youtube_url": "https://www.youtube.com/watch?v=wE1ZgJdt4uM",
+  "input_dir": "tests/fixtures/yc_paper_club",
+  "fusion_mode": "degraded",
+  "structure_source": "ulisten_manual_browser_copy",
+  "text_source": "ulisten_raw_degraded",
+  "ulisten_source_state": "present",
+  "usetranscribe_source_state": "absent",
+  "fixture_text_used": false,
+  "chapter_count": 7,
+  "speaker_count": 6,
+  "segment_count": 115,
+  "provider_ids": {
+    "ulisten": "gSNFJbgoaHI"
+  },
+  "limitations": [
+    "No source_usetranscribe_raw.md was supplied; this is degraded mode and alignment_confidence must remain null."
+  ]
+}

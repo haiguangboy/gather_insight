@@ -9,6 +9,7 @@ from .adapters.base import SourceHint
 from .pipeline.ids import media_id_for_url
 from .pipeline.ingest import IngestError, ingest_media
 from .pipeline.source_resolver import SourceResolutionError, resolve_source
+from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
 from .run_logging import RunLogger
 
 
@@ -65,6 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_source_arguments(resolve)
     resolve.add_argument("--provider", default="auto", choices=["auto", "official_transcript", "ulisten", "usetranscribe", "manual_markdown", "youtube_export"])
     resolve.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
+    fuse = sub.add_parser("fuse-transcript", help="Fuse uListen structure with UseTranscribe text or explicit fixture/degraded mode")
+    fuse.add_argument("--input-dir", required=True, type=Path)
+    fuse.add_argument("--output-root", type=Path, default=Path("data/media"))
+    fuse.add_argument("--use-fixture", action="store_true", help="Use the declared readable fixture; confidence remains null")
+    fuse.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
     return parser
 
 
@@ -129,5 +135,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "unresolved", "error": str(exc), "checks": [check.manifest_value() for check in exc.checks], "logs": logger.log_paths}, ensure_ascii=False, indent=2))
             return 2
         print(json.dumps({"status": "ok", "selected": resolved.selected.manifest_value(), "checks": resolved.manifest_checks, "logs": logger.log_paths}, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "fuse-transcript":
+        logger = RunLogger("fuse-transcript", global_log=args.log_file)
+        try:
+            result = run_fusion_workflow(input_dir=args.input_dir, output_root=args.output_root, use_fixture=args.use_fixture, logger=logger)
+        except FusionWorkflowError as exc:
+            print(f"fusion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     return 2
