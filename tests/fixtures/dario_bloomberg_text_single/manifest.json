@@ -1,0 +1,17 @@
+{
+  "schema_version": "gather_insight_phase_6_6_fixture_v1",
+  "media_id": "yt_x2VHFgyawPE",
+  "canonical_youtube_video_id": "x2VHFgyawPE",
+  "title": "Inside the Mind of Anthropic CEO Dario Amodei | The Circuit | Extended Interview",
+  "channel": "Bloomberg Originals",
+  "youtube_url": "https://www.youtube.com/watch?v=x2VHFgyawPE",
+  "duration_seconds": 4204,
+  "fixture_flags": {
+    "usetranscribe": true
+  },
+  "fixture_limitations": [
+    "source_usetranscribe_raw.md is a UseTranscribe-format developer fixture, not a fetched provider export.",
+    "Text was selected from the public YouTube caption baseline solely to exercise text_single behavior.",
+    "Do not publish or cite this fixture as a UseTranscribe transcript."
+  ]
+}

@@ -41,3 +41,9 @@ Official transcript, uListen, and UseTranscribe pages may be unstable or unsuita
 Status: accepted, 2026-07-19.
 
 The supplied fixture JSONL mixes manifest, chapter, and segment records. Production `transcript_fused.jsonl` contains only segment records so downstream evidence code can stream it without record-type branching. Aggregate metadata is written to `alignment_report.md` and `transcript_fused.md`.
+
+## ADR-008 — Official transcript outranks UseTranscribe in general resolution
+
+Status: accepted, 2026-07-19.
+
+Phase 6.6 keeps the YC workflow unchanged and adds a separate general source-combination state machine. If uListen and both text sources are present, uListen remains the structure source and the official transcript becomes the text source. If no uListen exists but official and UseTranscribe are both present, `official_single` is selected and UseTranscribe is recorded as unused. UseTranscribe-only output remains anonymous and carries a separate speaker-review status rather than marking all readable text as generally unreviewed.

@@ -1,0 +1,28 @@
+{
+  "status": "ok",
+  "run_id": "20260718T231903Z_9bbda4d9",
+  "media_id": "yt_x2VHFgyawPE",
+  "fusion_mode": "text_single",
+  "segment_count": 5,
+  "text_review_count": 0,
+  "speaker_review_count": 5,
+  "alignment_confidence_count": 0,
+  "input_hashes_before": {
+    "source_usetranscribe_raw.md": "8a2490de0123a36d17b6806723d511c135bcea7d22b731cb8af9e8a7d36837be"
+  },
+  "input_hashes_after": {
+    "source_usetranscribe_raw.md": "8a2490de0123a36d17b6806723d511c135bcea7d22b731cb8af9e8a7d36837be"
+  },
+  "outputs": {
+    "transcript_fused_jsonl": "data/media/yt_x2VHFgyawPE/general/transcript_fused.jsonl",
+    "transcript_fused_markdown": "data/media/yt_x2VHFgyawPE/general/transcript_fused.md",
+    "source_resolution_report": "data/media/yt_x2VHFgyawPE/general/source_resolution_report.md",
+    "review_queue": "data/media/yt_x2VHFgyawPE/general/review_queue.md",
+    "speaker_review_queue": "data/media/yt_x2VHFgyawPE/general/speaker_review_queue.md",
+    "fusion_manifest": "data/media/yt_x2VHFgyawPE/general/fusion_manifest.json"
+  },
+  "logs": [
+    "logs/gather_insight.jsonl",
+    "data/media/yt_x2VHFgyawPE/logs/20260718T231903Z_9bbda4d9.jsonl"
+  ]
+}

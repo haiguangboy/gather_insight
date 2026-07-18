@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 from gather_insight.adapters import manual_markdown, official_transcript, ulisten, usetranscribe, youtube
 from gather_insight.adapters.base import SourceCheck, SourceHint
@@ -67,3 +68,93 @@ def resolve_source(hints: dict[str, SourceHint], logger: RunLogger | None = None
         logger.event("ERROR", "source.unresolved", message, checks=[check.manifest_value() for check in checks])
     raise SourceResolutionError(message, checks)
 
+
+@dataclass(frozen=True)
+class TranscriptSourceState:
+    provider: str
+    filename: str
+    path: Path
+    status: str
+    available: bool
+    is_fixture: bool = False
+
+    def as_dict(self) -> dict[str, object]:
+        value = asdict(self)
+        value["path"] = str(self.path)
+        return value
+
+
+@dataclass(frozen=True)
+class TranscriptCombinationResolution:
+    fusion_mode: str
+    structure_source: str | None
+    text_source: str | None
+    sources: dict[str, TranscriptSourceState]
+    limitations: list[str]
+    unused_sources: list[str]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "fusion_mode": self.fusion_mode,
+            "structure_source": self.structure_source,
+            "text_source": self.text_source,
+            "sources": {name: state.as_dict() for name, state in self.sources.items()},
+            "limitations": self.limitations,
+            "unused_sources": self.unused_sources,
+        }
+
+
+def resolve_transcript_combination(*, input_dir: Path, fixture_flags: dict[str, bool] | None = None, logger: RunLogger | None = None) -> TranscriptCombinationResolution:
+    fixture_flags = fixture_flags or {}
+    filenames = {
+        "ulisten": "source_ulisten_raw.md",
+        "usetranscribe": "source_usetranscribe_raw.md",
+        "official_transcript": "source_official_transcript_raw.md",
+    }
+    sources: dict[str, TranscriptSourceState] = {}
+    for provider, filename in filenames.items():
+        path = input_dir / filename
+        available = path.is_file()
+        is_fixture = bool(fixture_flags.get(provider, False)) and available
+        state = TranscriptSourceState(
+            provider=provider,
+            filename=filename,
+            path=path,
+            status="fixture" if is_fixture else "present" if available else "missing",
+            available=available,
+            is_fixture=is_fixture,
+        )
+        sources[provider] = state
+        if logger:
+            logger.event("INFO" if available else "WARNING", "transcript_source.checked", "transcript source checked", **state.as_dict())
+
+    has_ulisten = sources["ulisten"].available
+    has_use = sources["usetranscribe"].available
+    has_official = sources["official_transcript"].available
+    limitations: list[str] = []
+    unused: list[str] = []
+    if has_ulisten and has_official:
+        mode, structure, text = "official_dual", "ulisten", "official_transcript"
+        if has_use:
+            unused.append("usetranscribe")
+            limitations.append("Official transcript was preferred over UseTranscribe because it is the higher-authority text source.")
+    elif has_ulisten and has_use:
+        mode, structure, text = "dual_source", "ulisten", "usetranscribe"
+    elif has_official:
+        mode, structure, text = "official_single", "official_transcript", "official_transcript"
+        if has_use:
+            unused.append("usetranscribe")
+            limitations.append("UseTranscribe was available but the official transcript was selected as the canonical single source.")
+    elif has_use:
+        mode, structure, text = "text_single", "text_timeline", "usetranscribe"
+        limitations.append("Speaker attribution is unavailable and must remain null or unknown until reviewed.")
+    elif has_ulisten:
+        mode, structure, text = "structure_degraded", "ulisten", "ulisten"
+        limitations.append("Readable secondary text is unavailable; uListen raw text is preserved without alignment confidence.")
+    else:
+        mode, structure, text = "failed", None, None
+        limitations.append("All supported transcript sources are missing.")
+    resolution = TranscriptCombinationResolution(mode, structure, text, sources, limitations, unused)
+    if logger:
+        logger.event("ERROR" if mode == "failed" else "INFO", "transcript_source.resolved", "transcript source combination resolved", **resolution.as_dict())
+    return resolution

@@ -10,6 +10,7 @@ from .pipeline.ids import media_id_for_url
 from .pipeline.ingest import IngestError, ingest_media
 from .pipeline.source_resolver import SourceResolutionError, resolve_source
 from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
+from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError, run_general_transcript_workflow
 from .run_logging import RunLogger
 
 
@@ -71,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     fuse.add_argument("--output-root", type=Path, default=Path("data/media"))
     fuse.add_argument("--use-fixture", action="store_true", help="Use the declared readable fixture; confidence remains null")
     fuse.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
+    general = sub.add_parser("fuse-general", help="Resolve official/uListen/UseTranscribe combinations with single-source fallback")
+    general.add_argument("--input-dir", required=True, type=Path)
+    general.add_argument("--output-root", type=Path, default=Path("data/media"))
+    general.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
     return parser
 
 
@@ -142,6 +147,15 @@ def main(argv: list[str] | None = None) -> int:
             result = run_fusion_workflow(input_dir=args.input_dir, output_root=args.output_root, use_fixture=args.use_fixture, logger=logger)
         except FusionWorkflowError as exc:
             print(f"fusion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "fuse-general":
+        logger = RunLogger("fuse-general", global_log=args.log_file)
+        try:
+            result = run_general_transcript_workflow(input_dir=args.input_dir, output_root=args.output_root, logger=logger)
+        except GeneralTranscriptWorkflowError as exc:
+            print(f"general fusion failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

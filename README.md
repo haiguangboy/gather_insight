@@ -37,6 +37,15 @@ python3 -m gather_insight fuse-transcript \
 
 Outputs are written under `data/media/<media_id>/fusion/`: `transcript_fused.jsonl`, `transcript_fused.md`, `alignment_report.md`, `review_queue.md`, `fusion_manifest.json`, and `processing_report.json`.
 
+For general source combinations, including UseTranscribe-only videos without uListen:
+
+```bash
+python3 -m gather_insight fuse-general \
+  --input-dir tests/fixtures/dario_bloomberg_text_single
+```
+
+This writes to `data/media/<media_id>/general/` and separates text review from speaker-attribution review. See `docs/PHASE_6_6_SOURCE_RESOLUTION.md` for the six-mode state machine.
+
 ## Manual transcript format
 
 ```markdown

@@ -19,7 +19,7 @@
     "properties": {
       "segment_id": {"type": "string", "pattern": "^yt_[A-Za-z0-9_-]+\\.seg_[0-9]{4}$"},
       "media_id": {"type": "string", "pattern": "^yt_[A-Za-z0-9_-]+$"},
-      "provider": {"enum": ["ulisten", "usetranscribe"]},
+      "provider": {"enum": ["ulisten", "usetranscribe", "official_transcript"]},
       "provider_id": {"type": ["string", "null"]},
       "speaker": {"type": ["string", "null"]},
       "chapter": {"type": ["string", "null"]},
