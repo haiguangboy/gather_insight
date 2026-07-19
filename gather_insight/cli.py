@@ -17,6 +17,7 @@ from .pipeline.naval_recent_six import run_naval_recent_six
 from .pipeline.phase71_evaluator import evaluate_phase71
 from .pipeline.phase711_human_gate import adapt_phase711_golden_review, finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
+from .pipeline.phase72b_workflow import run_phase72b_theme
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
 
@@ -160,6 +161,13 @@ def build_parser() -> argparse.ArgumentParser:
     naval = sub.add_parser("ingest-naval-recent-six", help="Cache and analyze the fixed Phase 7.2A Naval official corpus")
     naval.add_argument("--output-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
     naval.add_argument("--offline", action="store_true", help="Require all six official HTML pages to be cached")
+    theme72b = sub.add_parser("build-phase72b-theme", help="Consolidate the frozen Naval recent-six corpus into the Phase 7.2B theme package")
+    theme72b.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
+    theme72b.add_argument("--output-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
+    theme72b.add_argument("--semantic-mode", choices=["local_semantic", "mock_semantic"], default="local_semantic")
+    theme72b.add_argument("--judge-backend", choices=["deepseek", "mock", "rules"], default="deepseek")
+    theme72b.add_argument("--config", type=Path)
+    theme72b.add_argument("--cache-root", type=Path, default=Path("."))
     return parser
 
 
@@ -404,6 +412,19 @@ def main(argv: list[str] | None = None) -> int:
             result = run_naval_recent_six(output_dir=args.output_dir, offline=args.offline)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Naval recent-six ingestion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "build-phase72b-theme":
+        try:
+            config: dict[str, object] = {}
+            if args.config:
+                import yaml
+                loaded = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
+                config = dict(loaded.get("phase_7_2b", loaded))
+            result = run_phase72b_theme(corpus_dir=args.corpus_dir, output_dir=args.output_dir, semantic_mode=args.semantic_mode, judge_backend=args.judge_backend, config=config, cache_root=args.cache_root)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.2B theme consolidation failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2b_theme_candidate.schema.json",
+  "type": "object",
+  "required": ["claim_id", "claim", "speaker", "evidence_ids", "theme_relevance_score", "relevance_reason", "candidate_subtheme", "recall_method", "source_family_id", "independence_group_id"],
+  "properties": {
+    "claim_id": {"type": "string", "minLength": 1},
+    "claim": {"type": "string", "minLength": 1},
+    "speaker": {"type": "string", "minLength": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "theme_relevance_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "semantic_relevance_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "relevance_reason": {"type": "string", "minLength": 1},
+    "candidate_subtheme": {"enum": ["falling_execution_costs", "persistent_human_scarcities", "leverage_distribution", "software_value_migration", "software_to_industry", "new_bottlenecks", "internal_tensions"]},
+    "recall_method": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_family_id": {"type": "string"},
+    "independence_group_id": {"type": "string"}
+  },
+  "additionalProperties": true
+}

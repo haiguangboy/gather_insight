@@ -69,3 +69,7 @@ Status: accepted, 2026-07-19.
 ## 2026-07-19: Naval recent-six corpus is a fixed, cache-first official-source snapshot
 
 Phase 7.2A hard-codes the six archive entries selected by the experiment, validates each official title and canonical URL, and stops at the cursor rather than crawling the site. The four frontier-founders pages share one independence group, so serialized/full-page repetition never counts as independent support. Claims are verbatim evidence sentences from source-labelled speaker turns; cross-source trends and industry implications are separately marked system synthesis. The `Live in the Future` page has no official transcript body in the snapshot, so its description is retained as an unknown-speaker section and the missing transcript is reported instead of being replaced with audio or third-party text.
+
+## 2026-07-19: Theme consolidation uses balanced semantic recall and evidence-bounded judgment
+
+Phase 7.2B does not trust the broad Phase 7.2A keyword themes as a final filter: they match 485/566 claims. Local BGE-M3 ranks claim-plus-evidence context against seven concrete subquestions, while balanced subtheme and frame anchors prevent one broad category from consuming the theme. DeepSeek judges only boundary relevance, bounded cluster summaries, claim-pair relations, and explicit synthesis hypotheses. Theme claims never overwrite source claims, invalid model fields are rejected, all review states stay pending, and canonical outputs omit volatile provider counters to remain byte-idempotent.

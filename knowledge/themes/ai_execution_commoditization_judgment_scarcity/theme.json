@@ -1,0 +1,209 @@
+{
+  "excluded_support_sources": [
+    "naval_live_in_future_2026"
+  ],
+  "fixed_source_count": 6,
+  "model_and_prompt_version": {
+    "embedding": "bge-m3:latest",
+    "judge": "deepseek-v4-flash",
+    "prompt": "phase_7_2b_theme_consolidation_v1"
+  },
+  "publishability": "not_publishable",
+  "runtime": {
+    "automatic_count": 120,
+    "boundary_accepted_count": 33,
+    "boundary_reviewed_count": 50,
+    "counterevidence_count": 2,
+    "embedding_base_url": "http://localhost:11434",
+    "embedding_model": "bge-m3:latest",
+    "embedding_model_digest": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "embedding_normalize": true,
+    "frame_anchor_count": 27,
+    "independent_family_distribution": {
+      "1": 26,
+      "2": 4
+    },
+    "input_canonical_claim_count": 566,
+    "input_claim_count": 566,
+    "insight_candidate_count": 7,
+    "judge_backend": "deepseek",
+    "judge_invalid_count": 12,
+    "judge_model": "deepseek-v4-flash",
+    "judge_thinking": true,
+    "live_in_future_claim_count": 0,
+    "open_question_count": 10,
+    "person_position_count": 19,
+    "phase72a_input_unchanged": true,
+    "prompt_version": "phase_7_2b_theme_judge_v1",
+    "schema_version": "phase_7_2b_v1",
+    "semantic_alignment_degraded": false,
+    "semantic_backend": "ollama",
+    "theme_candidate_claim_count": 180,
+    "theme_canonical_claim_count": 30,
+    "theme_claim_cluster_count": 38,
+    "theme_claim_relation_count": 10,
+    "theme_slug": "ai_execution_commoditization_judgment_scarcity",
+    "theme_source_claim_count": 316,
+    "verification_queue_count": 38
+  },
+  "schema_version": "phase_7_2b_v1",
+  "source_corpus": "input/corpora/naval_recent_six",
+  "status": "unreviewed_draft",
+  "subthemes": {
+    "falling_execution_costs": {
+      "keywords": [
+        "code",
+        "coding",
+        "software",
+        "agent",
+        "token",
+        "time",
+        "output",
+        "factory",
+        "iterate",
+        "build"
+      ],
+      "question": "Which execution costs are falling because of AI agents: coding, software production, information generation, experimentation, engineering design, or coordination?",
+      "themes": [
+        "ai_coding_agents",
+        "software_production",
+        "time_compute_substitution",
+        "token_economics"
+      ]
+    },
+    "internal_tensions": {
+      "keywords": [
+        "but",
+        "however",
+        "versus",
+        "yet",
+        "still",
+        "not",
+        "more",
+        "less",
+        "tension",
+        "trade-off"
+      ],
+      "question": "What tensions remain between cheap execution and costly verification, equal access and unequal leverage, smaller teams and more firms, software abundance and infrastructure scarcity?",
+      "themes": [
+        "future_of_work",
+        "judgment",
+        "leverage",
+        "regulation",
+        "software_production",
+        "token_economics"
+      ]
+    },
+    "leverage_distribution": {
+      "keywords": [
+        "10x",
+        "100x",
+        "1,000x",
+        "leverage",
+        "junior",
+        "expert",
+        "generalist",
+        "small team",
+        "hire",
+        "jobs"
+      ],
+      "question": "Does AI equalize productivity or amplify exceptional engineers, founders, architects, and generalists; does it enable smaller teams?",
+      "themes": [
+        "future_of_work",
+        "leverage",
+        "recruiting_and_culture",
+        "startup_organization"
+      ]
+    },
+    "new_bottlenecks": {
+      "keywords": [
+        "regulat",
+        "faa",
+        "fda",
+        "government",
+        "permission",
+        "capital",
+        "capacity",
+        "safety",
+        "credible",
+        "responsib"
+      ],
+      "question": "Which bottlenecks become binding after technical execution accelerates: regulation, permission, capital, manufacturing capacity, safety, credibility, responsibility?",
+      "themes": [
+        "accountability",
+        "institutional_change",
+        "regulation",
+        "truth_and_credibility"
+      ]
+    },
+    "persistent_human_scarcities": {
+      "keywords": [
+        "judgment",
+        "taste",
+        "choose",
+        "right thing",
+        "architect",
+        "verify",
+        "evaluator",
+        "sign off",
+        "safe",
+        "feedback",
+        "accountab",
+        "responsib",
+        "trust",
+        "domain"
+      ],
+      "question": "Which capabilities remain scarce as execution becomes cheaper: problem selection, judgment, taste, architecture, verification, accountability, domain knowledge, trust?",
+      "themes": [
+        "accountability",
+        "judgment",
+        "truth_and_credibility"
+      ]
+    },
+    "software_to_industry": {
+      "keywords": [
+        "hardware",
+        "turbine",
+        "aircraft",
+        "engine",
+        "factory",
+        "manufactur",
+        "test",
+        "physical",
+        "vertical"
+      ],
+      "question": "How do software and agent methods enter hardware design, manufacturing, physical testing, real-world feedback, and vertically integrated companies?",
+      "themes": [
+        "hardware_engineering",
+        "manufacturing",
+        "vertical_integration"
+      ]
+    },
+    "software_value_migration": {
+      "keywords": [
+        "pure software",
+        "infrastructure",
+        "building block",
+        "reuse",
+        "data",
+        "distribution",
+        "moat",
+        "dead",
+        "obsolete",
+        "api"
+      ],
+      "question": "As pure software becomes easier to produce, does value migrate to agent infrastructure, reusable building blocks, proprietary data, distribution, and real-world feedback?",
+      "themes": [
+        "ai_coding_agents",
+        "software_production",
+        "vertical_integration"
+      ]
+    }
+  },
+  "theme_name": "从代码杠杆到AI工业革命：执行能力商品化以后，判断、品味、验证与责任为什么变得更加稀缺？",
+  "theme_slug": "ai_execution_commoditization_judgment_scarcity",
+  "transcript_bearing_independent_families": [
+    "naval_frontier_founders_industrial_2026",
+    "naval_sell_truth_2026"
+  ]
+}

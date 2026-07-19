@@ -26,6 +26,19 @@ python3 -m gather_insight ingest-naval-recent-six \
 
 See `docs/PHASE_7_2A_NAVAL_RECENT_SIX.md` for the source-family, duplicate-evidence, speaker-attribution, and cursor contracts.
 
+Phase 7.2B consolidates the frozen corpus around one evidence-linked theme without fetching new material:
+
+```bash
+python3 -m gather_insight build-phase72b-theme \
+  --corpus-dir input/corpora/naval_recent_six \
+  --output-dir knowledge/themes/ai_execution_commoditization_judgment_scarcity \
+  --semantic-mode local_semantic \
+  --judge-backend deepseek \
+  --config config/phase_7_2b.example.yaml
+```
+
+See `docs/PHASE_7_2B_THEME_CONSOLIDATION.md`. The generated theme claims and insights are review-pending and not publication copy.
+
 The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence.jsonl`, `review.md`, `processing_report.json`, and a per-run JSONL log. Re-running the same input is data-idempotent while every run receives a unique `run_id`. A changed source is rejected unless `--force-source` is explicit, and an existing human `review.md` is never overwritten.
 
 `--provider auto` is the default. It checks `--official-file`, `--ulisten-file`, `--usetranscribe-file`, `--transcript-file`, and `--youtube-export-file` in source-policy order. `resolve-sources` performs the checks without ingesting. URL-only hints are recorded but require a human export before they can become the selected text source.

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2b_theme_claim.schema.json",
+  "type": "object",
+  "required": ["schema_version", "theme_claim_id", "statement", "subtheme", "claim_type", "value_types", "parent_source_claim_ids", "parent_canonical_claim_ids", "evidence_ids", "speakers", "source_ids", "source_family_ids", "independent_source_family_count", "first_seen_at", "last_seen_at", "conditions", "limitations", "counter_claim_ids", "entailment_status", "verification_status", "review_status", "model_and_prompt_version"],
+  "properties": {
+    "schema_version": {"const": "phase_7_2b_v1"},
+    "theme_claim_id": {"type": "string", "minLength": 1},
+    "statement": {"type": "string", "minLength": 1},
+    "subtheme": {"type": "string", "minLength": 1},
+    "claim_type": {"type": "string", "minLength": 1},
+    "value_types": {"type": "array", "items": {"type": "string"}},
+    "parent_source_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "parent_canonical_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "speakers": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_family_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "independent_source_family_count": {"type": "integer", "minimum": 1},
+    "first_seen_at": {"type": "string", "format": "date"},
+    "last_seen_at": {"type": "string", "format": "date"},
+    "conditions": {"type": "array", "items": {"type": "string"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "counter_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "entailment_status": {"enum": ["fully_supported", "supported_with_missing_condition", "partially_supported", "overgeneralized", "contradicted", "unrelated"]},
+    "verification_status": {"type": "string"},
+    "review_status": {"const": "pending"},
+    "model_and_prompt_version": {"type": "string"}
+  },
+  "additionalProperties": true
+}

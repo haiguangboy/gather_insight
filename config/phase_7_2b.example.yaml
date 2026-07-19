@@ -1,0 +1,22 @@
+phase_7_2b:
+  embedding:
+    provider: ollama
+    base_url: http://localhost:11434
+    model: bge-m3:latest
+    dim: 1024
+    normalize: true
+    batch_size: 64
+    cache_path: .embcache/phase_7_2b_theme.embeddings.jsonl
+
+  llm:
+    provider: deepseek
+    deepseek_base_url: https://api.deepseek.com
+    deepseek_model: deepseek-v4-flash
+    deepseek_thinking: true
+    temperature: 0.0
+    deepseek_timeout: 120
+    judge_batch_size: 10
+    cache_path: .llmcache/phase_7_2b_theme_judgments.jsonl
+
+# DEEPSEEK_API_KEY is read only from the environment.
+# No local Qwen model is used by this workflow.

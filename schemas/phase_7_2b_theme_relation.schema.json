@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2b_theme_relation.schema.json",
+  "type": "object",
+  "required": ["schema_version", "relation_id", "relation_type", "source_claim_id", "target_claim_id", "rationale", "supporting_evidence_ids", "confidence", "review_status"],
+  "properties": {
+    "schema_version": {"const": "phase_7_2b_v1"},
+    "relation_id": {"type": "string"},
+    "relation_type": {"enum": ["exact_duplicate", "near_duplicate", "restates", "supports", "refines", "expands", "narrows", "prerequisite_of", "causes", "consequence_of", "example_of", "limits", "contradicts", "tension_with", "unrelated"]},
+    "source_claim_id": {"type": "string"},
+    "target_claim_id": {"type": "string"},
+    "rationale": {"type": "string", "minLength": 1},
+    "supporting_evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "review_status": {"const": "pending"}
+  },
+  "additionalProperties": true
+}

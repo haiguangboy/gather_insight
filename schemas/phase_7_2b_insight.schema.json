@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2b_insight.schema.json",
+  "type": "object",
+  "required": ["schema_version", "insight_id", "statement", "insight_type", "attribution_scope", "supporting_theme_claim_ids", "supporting_source_claim_ids", "evidence_ids", "speakers", "independent_source_family_count", "source_family_ids", "causal_chain", "conditions", "counterevidence", "unresolved_questions", "uncertainty", "confidence", "inference_method", "verification_status", "review_status", "publishability"],
+  "properties": {
+    "schema_version": {"const": "phase_7_2b_v1"},
+    "insight_id": {"type": "string"},
+    "statement": {"type": "string", "minLength": 1},
+    "insight_type": {"enum": ["repeated_speaker_position", "cross_source_pattern", "causal_synthesis", "industry_implication", "organizational_implication", "unresolved_tension", "hypothesis"]},
+    "attribution_scope": {"const": "system_synthesis"},
+    "supporting_theme_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+    "supporting_source_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "speakers": {"type": "array", "items": {"type": "string"}},
+    "independent_source_family_count": {"type": "integer", "minimum": 1},
+    "source_family_ids": {"type": "array", "items": {"type": "string"}},
+    "causal_chain": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+    "conditions": {"type": "array", "items": {"type": "string"}},
+    "counterevidence": {"type": "array", "items": {"type": "string"}},
+    "unresolved_questions": {"type": "array", "items": {"type": "string"}},
+    "uncertainty": {"type": "string"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "inference_method": {"type": "string"},
+    "verification_status": {"type": "string"},
+    "review_status": {"const": "pending"},
+    "publishability": {"const": "not_publishable_before_human_review"}
+  },
+  "additionalProperties": true
+}
