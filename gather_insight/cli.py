@@ -14,7 +14,7 @@ from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError
 from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
 from .pipeline.no_ulisten_trend_workflow import compare_phase7_trend, run_no_ulisten_trend
 from .pipeline.phase71_evaluator import evaluate_phase71
-from .pipeline.phase711_human_gate import finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
+from .pipeline.phase711_human_gate import adapt_phase711_golden_review, finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
@@ -152,6 +152,10 @@ def build_parser() -> argparse.ArgumentParser:
     golden_freeze.add_argument("--output", required=True, type=Path)
     golden_freeze.add_argument("--reviewer", required=True)
     golden_freeze.add_argument("--golden-version", required=True)
+    golden_adapt = sub.add_parser("adapt-phase711-golden-review", help="Adapt the confirmed legacy golden export to the split 7.1.1a/7.1.1b format")
+    golden_adapt.add_argument("--input", required=True, type=Path)
+    golden_adapt.add_argument("--output", required=True, type=Path)
+    golden_adapt.add_argument("--reviewer", required=True)
     return parser
 
 
@@ -380,6 +384,14 @@ def main(argv: list[str] | None = None) -> int:
             result = freeze_phase711_golden(reviewed_path=args.reviewed, output_path=args.output, reviewer=args.reviewer, golden_version=args.golden_version)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.1.1 golden freeze failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "adapt-phase711-golden-review":
+        try:
+            result = adapt_phase711_golden_review(input_path=args.input, output_path=args.output, reviewer=args.reviewer)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1.1 golden adaptation failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

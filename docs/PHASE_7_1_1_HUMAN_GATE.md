@@ -63,12 +63,19 @@ python3 -m gather_insight generate-phase711-golden-review \
   --output-dir <private_golden_review_dir> \
   --reviewed <existing_golden_review_completed.jsonl>
 
+python3 -m gather_insight adapt-phase711-golden-review \
+  --input <legacy_golden_review_completed.jsonl> \
+  --output <v2_compatible_review.jsonl> \
+  --reviewer <reviewer-id>
+
 python3 -m gather_insight freeze-phase711-golden \
   --reviewed <completed_golden_review.jsonl> \
   --output <frozen_golden.jsonl> \
   --reviewer <reviewer-id> \
   --golden-version yc_claim_golden_v2
 ```
+
+The adaptation command is only for a reviewer-confirmed legacy export. It preserves the source file, converts populated legacy `pending` defaults to `approve`, normalizes completely empty expansion rows to `optional`, records change history, and produces an adaptation report before freeze.
 
 ## Metrics
 

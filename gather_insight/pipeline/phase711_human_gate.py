@@ -450,3 +450,39 @@ Phase 7.1.1b optional expansion was not required for this freeze.
 ''', encoding="utf-8")
     (output_path.parent / f"{output_path.stem}.manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report
+
+
+def adapt_phase711_golden_review(*, input_path: Path, output_path: Path, reviewer: str) -> dict[str, Any]:
+    """Adapt the original 50-row review export to the 7.1.1a/7.1.1b contract.
+
+    This conversion is only valid after the reviewer explicitly confirms that
+    populated rows left at the old UI's default ``pending`` mean "unchanged and
+    approved".  Empty expansion rows become non-blocking ``optional`` rows.
+    The source review export is never modified.
+    """
+    if not reviewer.strip():
+        raise ValueError("reviewer confirmation is required for golden review adaptation")
+    rows = _read_jsonl(input_path)
+    if not rows:
+        raise ValueError("golden review input is empty")
+    adapted_at = _now()
+    pending_promoted = 0
+    empty_optional = 0
+    adapted: list[dict[str, Any]] = []
+    for row in rows:
+        value = dict(row)
+        if value.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(value) and value.get("review_action") == "pending":
+            value["review_action"] = "approve"
+            value["reviewer"] = reviewer
+            value["reviewed_at"] = adapted_at
+            value["change_history"] = [*(value.get("change_history") or []), {"at": adapted_at, "reviewer": reviewer, "action": "approve", "note": "Reviewer confirmed the prior result is unchanged; legacy pending default adapted to approve."}]
+            pending_promoted += 1
+        if value.get("selection_source") != "existing_reviewer_draft" and not _golden_has_content(value):
+            value["review_action"] = "optional"
+            empty_optional += 1
+        value["format_version"] = "phase_7_1_1_split_golden_v2"
+        adapted.append(value)
+    _write_jsonl(output_path, adapted)
+    report = {"schema_version": "phase_7_1_1_golden_adaptation_report_v1", "status": "ok", "source": str(input_path.resolve()), "output": str(output_path.resolve()), "input_row_count": len(rows), "populated_existing_count": sum(row.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(row) for row in adapted), "legacy_pending_promoted_to_approve": pending_promoted, "empty_optional_rows_normalized": empty_optional, "reviewer_confirmation": reviewer, "adapted_at": adapted_at}
+    (output_path.parent / "golden_review_adaptation_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return report

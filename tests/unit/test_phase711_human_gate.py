@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from gather_insight.pipeline.phase711_human_gate import finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
+from gather_insight.pipeline.phase711_human_gate import adapt_phase711_golden_review, finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from gather_insight.pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
 
 
@@ -86,6 +86,21 @@ class Phase711HumanGateTests(unittest.TestCase):
             reviewed.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "partially filled incomplete"):
                 freeze_phase711_golden(reviewed_path=reviewed, output_path=root / "frozen.jsonl", reviewer="tester", golden_version="gold_v2")
+
+    def test_legacy_review_adaptation_promotes_confirmed_pending_and_preserves_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "legacy.jsonl"
+            rows = [{"selection_source": "existing_reviewer_draft", "gold_claim": "A", "supporting_text": "Evidence", "supporting_time_range": [1, 2], "claim_type": "fact", "expected_theme": "test", "review_action": "pending"}, {"selection_source": "independent_important", "gold_claim": "", "supporting_text": "", "supporting_time_range": [None, None], "review_action": "pending"}]
+            source.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            before = source.read_bytes()
+            output = root / "adapted.jsonl"
+            result = adapt_phase711_golden_review(input_path=source, output_path=output, reviewer="tester")
+            adapted = read_jsonl(output)
+            self.assertEqual(result["legacy_pending_promoted_to_approve"], 1)
+            self.assertEqual(adapted[0]["review_action"], "approve")
+            self.assertEqual(adapted[1]["review_action"], "optional")
+            self.assertEqual(source.read_bytes(), before)
 
 
 if __name__ == "__main__":
