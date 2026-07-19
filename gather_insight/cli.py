@@ -12,6 +12,7 @@ from .pipeline.source_resolver import SourceResolutionError, resolve_source
 from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
 from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError, run_general_transcript_workflow
 from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
+from .pipeline.no_ulisten_trend_workflow import compare_phase7_trend, run_no_ulisten_trend
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
 
@@ -105,6 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
     review_views.add_argument("--vecalign-raw-dir", required=True, type=Path)
     review_views.add_argument("--vecalign-margin-dir", required=True, type=Path)
     review_views.add_argument("--sentalign-margin-dir", required=True, type=Path)
+    no_ulisten = sub.add_parser("fuse-no-ulisten-trend", help="Run the Phase 7.0 blind dual-text trend-mode fusion")
+    no_ulisten.add_argument("--input-dir", required=True, type=Path)
+    no_ulisten.add_argument("--output-dir", required=True, type=Path)
+    no_ulisten.add_argument("--semantic-mode", choices=["local_semantic", "mock_semantic"], default="local_semantic")
+    no_ulisten.add_argument("--semantic-config", type=Path)
+    no_ulisten.add_argument("--semantic-cache-root", type=Path, default=Path("."))
+    phase7_compare = sub.add_parser("compare-phase7-trend", help="Compare frozen no-uListen candidates with Result B after blind generation")
+    phase7_compare.add_argument("--blind-output-dir", required=True, type=Path)
+    phase7_compare.add_argument("--ulisten-result-dir", required=True, type=Path)
+    phase7_compare.add_argument("--output-dir", required=True, type=Path)
     return parser
 
 
@@ -250,6 +261,28 @@ def main(argv: list[str] | None = None) -> int:
             )
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"review view generation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "fuse-no-ulisten-trend":
+        try:
+            config: dict[str, object] = {"mode": args.semantic_mode}
+            if args.semantic_config:
+                import yaml
+                loaded = yaml.safe_load(args.semantic_config.read_text(encoding="utf-8")) or {}
+                config.update(dict(loaded.get("semantic_alignment", loaded)))
+                config["mode"] = args.semantic_mode
+            result = run_no_ulisten_trend(input_dir=args.input_dir, output_dir=args.output_dir, semantic_config=config, cache_root=args.semantic_cache_root)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"no-uListen trend fusion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "compare-phase7-trend":
+        try:
+            result = compare_phase7_trend(blind_output_dir=args.blind_output_dir, ulisten_result_dir=args.ulisten_result_dir, output_dir=args.output_dir)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.0 trend comparison failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

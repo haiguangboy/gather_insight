@@ -58,6 +58,18 @@ python3 -m gather_insight fuse-general \
 
 Use `--alignment-score-mode raw_cosine` for the raw-cosine baseline. Phase 6.8 remains available with `--alignment-algorithm phase_6_8_beam`. Vecalign/SentAlign modes never call DeepSeek or Qwen.
 
+Phase 7.0 adds a strictly isolated no-uListen trend-mode ablation. It aligns two non-uListen transcripts, retains gaps and conflicts, infers only section-level speakers from original video metadata, and freezes the blind outputs before a Result B comparison is permitted:
+
+```bash
+python3 -m gather_insight fuse-no-ulisten-trend \
+  --input-dir <isolated_private_input_dir> \
+  --output-dir <private_blind_output_dir> \
+  --semantic-mode local_semantic \
+  --semantic-config config/semantic_alignment.example.yaml
+```
+
+See `docs/PHASE_7_0_NO_ULISTEN_TREND_MODE.md`. Complete third-party transcripts and experiment outputs must remain private and gitignored.
+
 ## Manual transcript format
 
 ```markdown
