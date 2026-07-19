@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2c_review_decision.schema.json",
+  "type": "object",
+  "required": ["schema_version", "record_type", "decision", "reviewer", "reviewed_at"],
+  "properties": {
+    "schema_version": {"const": "phase_7_2c_v1"},
+    "record_type": {"enum": ["theme_claim", "relation", "insight", "p0_verification"]},
+    "decision": {"type": "string"},
+    "reviewer": {"type": "string"},
+    "reviewed_at": {"type": "string"},
+    "epistemic_status": {"enum": ["", "directly_supported", "supported_synthesis", "provisional", "hypothesis", "contested", "insufficient_evidence"]},
+    "final_relation_type": {"enum": ["exact_duplicate", "near_duplicate", "restates", "supports", "refines", "expands", "narrows", "prerequisite_of", "causes", "consequence_of", "example_of", "limits", "contradicts", "tension_with", "unrelated", "enables", "shifts_bottleneck_to", "increases_relative_importance_of", "coexists_with", "conditional_on"]}
+  },
+  "additionalProperties": true
+}

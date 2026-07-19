@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gatherinsight.local/schemas/phase_7_2c_theme_judgment.schema.json",
+  "type": "object",
+  "required": ["schema_version", "theme_slug", "judgment_version", "status", "frozen_at", "corpus_snapshot", "calibrated_statement", "accepted_claim_ids", "accepted_insight_ids", "unresolved_tensions", "confidence", "evidence_scope", "known_limitations", "predictions_expected_observations", "conditions_that_would_weaken_or_overturn"],
+  "properties": {
+    "schema_version": {"const": "phase_7_2c_v1"},
+    "theme_slug": {"const": "ai_execution_commoditization_judgment_scarcity"},
+    "judgment_version": {"const": "theme_judgment_v1"},
+    "status": {"const": "human_reviewed_publication_candidate"},
+    "frozen_at": {"type": "string", "minLength": 1},
+    "calibrated_statement": {"type": "string", "minLength": 1},
+    "accepted_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "accepted_insight_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "conditions_that_would_weaken_or_overturn": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+  },
+  "additionalProperties": true
+}

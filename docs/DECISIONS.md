@@ -66,6 +66,18 @@ Status: accepted, 2026-07-19.
 
 `alignment_algorithm: vecalign` uses the standard `(i, j)` parallel-document lattice with fixed `N:M` and gap transitions, percentile-calibrated skip cost, and raw or bidirectional margin-normalized cosine. A SentAlign-style scoring recurrence is separately selectable. The official CLI packages are not runtime dependencies because their NumPy/Cython/LaBSE file pipelines do not expose GatherInsight character provenance; the small transcript-scale recurrence is faithfully adapted in Python and documented with upstream license and complexity details. Phase 6.8 remains available as a baseline. DeepSeek and Qwen are not part of these paths.
 
+## ADR-012 — Phase 7.2C remains a real human gate
+
+Status: accepted, 2026-07-20.
+
+Phase 7.2C preparation never turns Phase 7.2B `pending` records into accepted
+records. Publication-family, speaker, organization, domain, and evidence-type
+diversity are counted separately; two Naval publication families are not called
+two independent industry validations. A frozen judgment requires complete
+decisions for all theme claims, relations, insights, and P0 verification items.
+Publication candidates can only read accepted claims and accepted insights and
+are never automatically published.
+
 ## 2026-07-19: Naval recent-six corpus is a fixed, cache-first official-source snapshot
 
 Phase 7.2A hard-codes the six archive entries selected by the experiment, validates each official title and canonical URL, and stops at the cursor rather than crawling the site. The four frontier-founders pages share one independence group, so serialized/full-page repetition never counts as independent support. Claims are verbatim evidence sentences from source-labelled speaker turns; cross-source trends and industry implications are separately marked system synthesis. The `Live in the Future` page has no official transcript body in the snapshot, so its description is retained as an unknown-speaker section and the missing transcript is reported instead of being replaced with audio or third-party text.

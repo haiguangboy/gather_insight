@@ -39,6 +39,18 @@ python3 -m gather_insight build-phase72b-theme \
 
 See `docs/PHASE_7_2B_THEME_CONSOLIDATION.md`. The generated theme claims and insights are review-pending and not publication copy.
 
+Phase 7.2C prepares the human claim/relation/insight/P0 gate without accepting
+machine-pending records:
+
+```bash
+python3 -m gather_insight prepare-phase72c-theme
+```
+
+After exporting all four completed review JSONLs, use
+`finalize-phase72c-theme` to freeze `theme_judgment_v1`. Publication drafts are
+only generated when that strict gate passes. See
+`docs/PHASE_7_2C_HUMAN_THEME_GATE.md`.
+
 The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence.jsonl`, `review.md`, `processing_report.json`, and a per-run JSONL log. Re-running the same input is data-idempotent while every run receives a unique `run_id`. A changed source is rejected unless `--force-source` is explicit, and an existing human `review.md` is never overwritten.
 
 `--provider auto` is the default. It checks `--official-file`, `--ulisten-file`, `--usetranscribe-file`, `--transcript-file`, and `--youtube-export-file` in source-policy order. `resolve-sources` performs the checks without ingesting. URL-only hints are recorded but require a human export before they can become the selected text source.

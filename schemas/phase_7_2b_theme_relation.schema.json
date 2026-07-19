@@ -6,7 +6,7 @@
   "properties": {
     "schema_version": {"const": "phase_7_2b_v1"},
     "relation_id": {"type": "string"},
-    "relation_type": {"enum": ["exact_duplicate", "near_duplicate", "restates", "supports", "refines", "expands", "narrows", "prerequisite_of", "causes", "consequence_of", "example_of", "limits", "contradicts", "tension_with", "unrelated"]},
+    "relation_type": {"enum": ["exact_duplicate", "near_duplicate", "restates", "supports", "refines", "expands", "narrows", "prerequisite_of", "causes", "consequence_of", "example_of", "limits", "contradicts", "tension_with", "unrelated", "enables", "shifts_bottleneck_to", "increases_relative_importance_of", "coexists_with", "conditional_on"]},
     "source_claim_id": {"type": "string"},
     "target_claim_id": {"type": "string"},
     "rationale": {"type": "string", "minLength": 1},
