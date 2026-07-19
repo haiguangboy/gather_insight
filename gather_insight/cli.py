@@ -146,6 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
     golden_review = sub.add_parser("generate-phase711-golden-review", help="Generate a blind private golden review and extension package")
     golden_review.add_argument("--draft", required=True, type=Path)
     golden_review.add_argument("--output-dir", required=True, type=Path)
+    golden_review.add_argument("--reviewed", type=Path, help="Existing completed JSONL to restore without overwriting human state")
     golden_freeze = sub.add_parser("freeze-phase711-golden", help="Validate and freeze a completed private Phase 7.1.1 golden")
     golden_freeze.add_argument("--reviewed", required=True, type=Path)
     golden_freeze.add_argument("--output", required=True, type=Path)
@@ -368,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "generate-phase711-golden-review":
         try:
-            result = generate_phase711_golden_review(draft_path=args.draft, output_dir=args.output_dir)
+            result = generate_phase711_golden_review(draft_path=args.draft, output_dir=args.output_dir, reviewed_path=args.reviewed)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.1.1 golden review generation failed: {exc}", file=sys.stderr)
             return 2

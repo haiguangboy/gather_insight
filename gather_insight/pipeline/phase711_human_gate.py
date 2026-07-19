@@ -346,81 +346,107 @@ Phase 7.2 allowed: **{str(report["phase_7_2_allowed"]).lower()}**. Only `accepte
 '''
 
 
-def generate_phase711_golden_review(*, draft_path: Path, output_dir: Path) -> dict[str, Any]:
-    """Build a private, system-output-blind 50-slot golden review package."""
-    draft = _read_jsonl(draft_path)
-    if not draft:
-        raise ValueError("golden reviewer draft is empty")
+_GOLDEN_REQUIRED = ("gold_claim", "supporting_text", "claim_type", "expected_theme")
+_GOLDEN_AUTHOR_FIELDS = (*_GOLDEN_REQUIRED, "why_valuable", "speaker_requirement", "verification_requirement")
+
+
+def _golden_has_content(row: dict[str, Any]) -> bool:
+    times = row.get("supporting_time_range") or []
+    return bool(any(str(row.get(key) or "").strip() for key in _GOLDEN_AUTHOR_FIELDS) or row.get("value_types") or row.get("expected_risks") or any(value is not None for value in times))
+
+
+def _golden_is_complete(row: dict[str, Any]) -> bool:
+    times = row.get("supporting_time_range") or []
+    return bool(all(str(row.get(key) or "").strip() for key in _GOLDEN_REQUIRED) and len(times) == 2 and all(value is not None for value in times))
+
+
+def _selected(value: str, current: str) -> str:
+    return " selected" if value == current else ""
+
+
+def _golden_card(row: dict[str, Any], index: int, *, optional: bool) -> str:
+    current = str(row.get("review_action") or ("optional" if optional else "pending"))
+    if optional and not _golden_has_content(row) and current == "pending":
+        current = "optional"
+    actions = ("optional", "approve", "edit", "exclude") if optional else ("pending", "approve", "edit", "exclude")
+    times = list(row.get("supporting_time_range") or [None, None])
+    times += [None] * (2 - len(times))
+    return f'''<article class="gold {'optional' if optional else 'populated'}" data-row="{html.escape(json.dumps(row, ensure_ascii=False), quote=True)}"><h2>Golden item {index:02d} · {html.escape(row["selection_source"])}</h2><p class="kind">{html.escape(row["label_kind"])}</p><div class="form"><label>review action <select class="action">{''.join(f'<option{_selected(value, current)}>{value}</option>' for value in actions)}</select></label><label>gold claim <textarea class="claim">{html.escape(str(row.get("gold_claim") or ""))}</textarea></label><label>supporting text <textarea class="support">{html.escape(str(row.get("supporting_text") or ""))}</textarea></label><label>time start <input class="start" type="number" value="{html.escape(str(times[0] if times[0] is not None else ""))}"></label><label>time end <input class="end" type="number" value="{html.escape(str(times[1] if times[1] is not None else ""))}"></label><label>claim type <input class="claim-type" value="{html.escape(str(row.get("claim_type") or ""))}"></label><label>value types <input class="value-types" value="{html.escape(", ".join(row.get("value_types") or []))}"></label><label>expected theme <input class="theme" value="{html.escape(str(row.get("expected_theme") or ""))}"></label><label>why valuable <textarea class="why">{html.escape(str(row.get("why_valuable") or ""))}</textarea></label><label>speaker requirement <input class="speaker" value="{html.escape(str(row.get("speaker_requirement") or ""))}"></label><label>verification requirement <input class="verification" value="{html.escape(str(row.get("verification_requirement") or ""))}"></label><label>expected risks <input class="risks" value="{html.escape(", ".join(row.get("expected_risks") or []))}"></label><label>reviewer note <textarea class="note">{html.escape(str(row.get("reviewer_note") or ""))}</textarea></label></div></article>'''
+
+
+def generate_phase711_golden_review(*, draft_path: Path, output_dir: Path, reviewed_path: Path | None = None) -> dict[str, Any]:
+    """Build or restore a blind golden review without treating empty slots as pending."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows: list[dict[str, Any]] = []
-    for index, item in enumerate(draft, 1):
-        rows.append({
-            **item,
-            "review_item_id": f"golden_review.existing.{index:03d}",
-            "label_kind": "positive",
-            "selection_source": "existing_reviewer_draft",
-            "review_action": "pending",
-            "system_output_hidden": True,
-            "reviewer_note": "",
-            "change_history": [],
-        })
-    extensions = (("independent_important", "positive", 10), ("hard_negative", "hard_negative", 10), ("background_overestimate", "background_negative", 5))
-    for group, label_kind, count in extensions:
-        for index in range(1, count + 1):
-            rows.append({
-                "review_item_id": f"golden_review.{group}.{index:02d}",
-                "gold_id": f"pending_{group}_{index:02d}",
-                "label_kind": label_kind,
-                "selection_source": group,
-                "review_action": "pending",
-                "gold_claim": "",
-                "claim_type": "",
-                "value_types": [],
-                "supporting_time_range": [None, None],
-                "supporting_text": "",
-                "expected_theme": "",
-                "why_valuable": "",
-                "speaker_requirement": "",
-                "verification_requirement": "",
-                "expected_risks": [],
-                "category": group,
-                "system_output_hidden": True,
-                "reviewer_note": "",
-                "change_history": [],
-            })
+    completed = reviewed_path or (output_dir / "golden_review_completed.jsonl")
+    rows = _read_jsonl(completed) if completed.exists() else []
+    if not rows:
+        draft = _read_jsonl(draft_path)
+        if not draft:
+            raise ValueError("golden reviewer draft is empty")
+        rows = [{**item, "review_item_id": f"golden_review.existing.{index:03d}", "label_kind": "positive", "selection_source": "existing_reviewer_draft", "review_action": "pending", "system_output_hidden": True, "reviewer_note": "", "change_history": []} for index, item in enumerate(draft, 1)]
+        for group, label_kind, count in (("independent_important", "positive", 10), ("hard_negative", "hard_negative", 10), ("background_overestimate", "background_negative", 5)):
+            for index in range(1, count + 1):
+                rows.append({"review_item_id": f"golden_review.{group}.{index:02d}", "gold_id": f"pending_{group}_{index:02d}", "label_kind": label_kind, "selection_source": group, "review_action": "optional", "gold_claim": "", "claim_type": "", "value_types": [], "supporting_time_range": [None, None], "supporting_text": "", "expected_theme": "", "why_valuable": "", "speaker_requirement": "", "verification_requirement": "", "expected_risks": [], "category": group, "system_output_hidden": True, "reviewer_note": "", "change_history": []})
+    populated = [row for row in rows if row.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(row)]
+    optional_rows = [row for row in rows if row.get("selection_source") != "existing_reviewer_draft"]
+    optional_completed = [row for row in optional_rows if _golden_has_content(row)]
+    action_counts = Counter(str(row.get("review_action") or "pending") for row in populated)
+    reviewed_count = sum(action_counts[value] for value in ("approve", "edit", "exclude"))
     template = output_dir / "golden_review_template.jsonl"
     _write_jsonl(template, rows)
-    cards = []
-    for index, row in enumerate(rows, 1):
-        cards.append(f'''<article class="gold" data-row="{html.escape(json.dumps(row, ensure_ascii=False), quote=True)}"><h2>Golden item {index:02d} · {html.escape(row["selection_source"])}</h2><p class="kind">{html.escape(row["label_kind"])}</p><div class="form"><label>review action <select class="action"><option>pending</option><option>approve</option><option>edit</option><option>exclude</option></select></label><label>gold claim <textarea class="claim">{html.escape(str(row.get("gold_claim") or ""))}</textarea></label><label>supporting text <textarea class="support">{html.escape(str(row.get("supporting_text") or ""))}</textarea></label><label>time start <input class="start" type="number" value="{html.escape(str((row.get("supporting_time_range") or [None, None])[0] or ""))}"></label><label>time end <input class="end" type="number" value="{html.escape(str((row.get("supporting_time_range") or [None, None])[1] or ""))}"></label><label>claim type <input class="claim-type" value="{html.escape(str(row.get("claim_type") or ""))}"></label><label>value types <input class="value-types" value="{html.escape(", ".join(row.get("value_types") or []))}"></label><label>expected theme <input class="theme" value="{html.escape(str(row.get("expected_theme") or ""))}"></label><label>why valuable <textarea class="why">{html.escape(str(row.get("why_valuable") or ""))}</textarea></label><label>speaker requirement <input class="speaker" value="{html.escape(str(row.get("speaker_requirement") or ""))}"></label><label>verification requirement <input class="verification" value="{html.escape(str(row.get("verification_requirement") or ""))}"></label><label>expected risks <input class="risks" value="{html.escape(", ".join(row.get("expected_risks") or []))}"></label><label>reviewer note <textarea class="note"></textarea></label></div></article>''')
+    existing_cards = [_golden_card(row, index, optional=False) for index, row in enumerate(populated, 1)]
+    optional_cards = [_golden_card(row, index, optional=True) for index, row in enumerate(optional_rows, 1)]
+    reviewer = next((str(row.get("reviewer") or "") for row in rows if row.get("reviewer")), "")
+    version = next((str(row.get("golden_version") or "") for row in rows if row.get("golden_version")), "yc_claim_golden_v2")
     page = output_dir / "golden_review.html"
-    page.write_text(f'''<!doctype html><html><head><meta charset="utf-8"><title>Phase 7.1.1 golden review</title><style>body{{font:14px/1.5 system-ui;max-width:1100px;margin:24px auto}}.gold{{border:1px solid #bbb;padding:16px;margin:18px 0;background:#fffdf7}}.kind{{font-weight:bold}}.form{{display:grid;gap:8px}}.form label{{display:grid;grid-template-columns:190px 1fr;gap:8px}}textarea{{min-height:70px}}.top{{position:sticky;top:0;background:white;padding:12px;border-bottom:1px solid #aaa;z-index:2}}.warning{{background:#fff2cc;padding:10px}}</style></head><body><div class="top"><h1>Phase 7.1.1 golden review</h1><p class="warning">Current system hit/miss status is intentionally absent. Review source support and value independently.</p><label>Reviewer <input id="reviewer"></label><label> Golden version <input id="version" value="yc_claim_golden_v2"></label><button onclick="downloadGolden()">Download reviewed golden JSONL</button></div><p>{len(draft)} existing draft items plus 10 independent important items, 10 hard negatives, and 5 background-overestimate items.</p>{''.join(cards)}<script>function values(el){{return el.value.split(',').map(x=>x.trim()).filter(Boolean)}}function downloadGolden(){{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){{alert('Reviewer required');return}}const version=document.getElementById('version').value.trim();const now=new Date().toISOString();const rows=[...document.querySelectorAll('.gold')].map(card=>{{const row=JSON.parse(card.dataset.row);row.review_action=card.querySelector('.action').value;row.gold_claim=card.querySelector('.claim').value;row.supporting_text=card.querySelector('.support').value;const start=card.querySelector('.start').value,end=card.querySelector('.end').value;row.supporting_time_range=[start===''?null:Number(start),end===''?null:Number(end)];row.claim_type=card.querySelector('.claim-type').value;row.value_types=values(card.querySelector('.value-types'));row.expected_theme=card.querySelector('.theme').value;row.why_valuable=card.querySelector('.why').value;row.speaker_requirement=card.querySelector('.speaker').value;row.verification_requirement=card.querySelector('.verification').value;row.expected_risks=values(card.querySelector('.risks'));row.reviewer_note=card.querySelector('.note').value;row.reviewer=reviewer;row.golden_version=version;row.reviewed_at=now;row.system_output_hidden=true;row.change_history=[...(row.change_history||[]),{{at:now,reviewer,action:row.review_action,note:row.reviewer_note}}];return row}});const text=rows.map(x=>JSON.stringify(x)).join('\\n')+'\\n';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{{type:'application/jsonl'}}));a.download='golden_review_completed.jsonl';a.click()}}</script></body></html>''', encoding="utf-8")
-    manifest = {"schema_version": GOLDEN_REVIEW_VERSION, "status": "pending_human_review", "existing_draft_count": len(draft), "independent_important_slots": 10, "hard_negative_slots": 10, "background_overestimate_slots": 5, "total_slots": len(rows), "system_output_hidden": True, "review_html": str(page.resolve()), "review_template": str(template.resolve())}
+    page.write_text(f'''<!doctype html><html><head><meta charset="utf-8"><title>Phase 7.1.1 golden review</title><style>body{{font:14px/1.5 system-ui;max-width:1100px;margin:24px auto}}.gold{{border:1px solid #bbb;padding:16px;margin:18px 0;background:#fffdf7}}.optional{{background:#f5f7f9}}.kind{{font-weight:bold}}.form{{display:grid;gap:8px}}.form label{{display:grid;grid-template-columns:190px 1fr;gap:8px}}textarea{{min-height:70px}}.top{{position:sticky;top:0;background:white;padding:12px;border-bottom:1px solid #aaa;z-index:2}}.warning{{background:#fff2cc;padding:10px}}.progress{{display:flex;gap:14px;flex-wrap:wrap;font-weight:600}}details.expansion{{border:1px solid #9aa;padding:12px;background:#eef3f7}}</style></head><body><div class="top"><h1>Phase 7.1.1a — Review and Freeze Existing Golden</h1><p class="warning">System hit/miss status is hidden. This page contains {len(populated)} populated items and {len(optional_rows)} optional empty authoring slots. Optional slots do not count as pending or block freeze.</p><div class="progress"><span>populated: <b id="p-populated">0</b></span><span>reviewed populated: <b id="p-reviewed">0</b></span><span>approved: <b id="p-approved">0</b></span><span>edited: <b id="p-edited">0</b></span><span>excluded: <b id="p-excluded">0</b></span><span>optional expansion completed: <b id="p-optional">0</b></span></div><label>Reviewer <input id="reviewer" value="{html.escape(reviewer, quote=True)}"></label><label> Golden version <input id="version" value="{html.escape(version, quote=True)}"></label><button onclick="downloadGolden()">Download reviewed golden JSONL</button></div><h1>Populated Existing Golden — {len(populated)} populated items</h1>{''.join(existing_cards)}<details class="expansion"><summary><strong>Optional Golden Expansion — {len(optional_rows)} authoring slots (default collapsed, non-blocking)</strong></summary><p>These slots are Phase 7.1.1b material. Leave them empty to exclude them from progress and freeze.</p>{''.join(optional_cards)}</details><script>function values(el){{return el.value.split(',').map(x=>x.trim()).filter(Boolean)}}function content(card){{return card.querySelector('.claim').value.trim()!==''||card.querySelector('.support').value.trim()!==''||card.querySelector('.start').value!==''||card.querySelector('.end').value!==''||card.querySelector('.claim-type').value.trim()!==''||card.querySelector('.theme').value.trim()!==''}}function progress(){{const populated=[...document.querySelectorAll('.gold.populated')].filter(content);const actions=populated.map(x=>x.querySelector('.action').value);document.getElementById('p-populated').textContent=populated.length;document.getElementById('p-reviewed').textContent=actions.filter(x=>['approve','edit','exclude'].includes(x)).length;document.getElementById('p-approved').textContent=actions.filter(x=>x==='approve').length;document.getElementById('p-edited').textContent=actions.filter(x=>x==='edit').length;document.getElementById('p-excluded').textContent=actions.filter(x=>x==='exclude').length;document.getElementById('p-optional').textContent=[...document.querySelectorAll('.gold.optional')].filter(content).length}}document.addEventListener('input',progress);document.addEventListener('change',progress);progress();function downloadGolden(){{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){{alert('Reviewer required');return}}const version=document.getElementById('version').value.trim();const now=new Date().toISOString();const rows=[...document.querySelectorAll('.gold')].map(card=>{{const row=JSON.parse(card.dataset.row);row.review_action=card.querySelector('.action').value;row.gold_claim=card.querySelector('.claim').value;row.supporting_text=card.querySelector('.support').value;const start=card.querySelector('.start').value,end=card.querySelector('.end').value;row.supporting_time_range=[start===''?null:Number(start),end===''?null:Number(end)];row.claim_type=card.querySelector('.claim-type').value;row.value_types=values(card.querySelector('.value-types'));row.expected_theme=card.querySelector('.theme').value;row.why_valuable=card.querySelector('.why').value;row.speaker_requirement=card.querySelector('.speaker').value;row.verification_requirement=card.querySelector('.verification').value;row.expected_risks=values(card.querySelector('.risks'));row.reviewer_note=card.querySelector('.note').value;row.reviewer=reviewer;row.golden_version=version;row.reviewed_at=now;row.system_output_hidden=true;row.change_history=[...(row.change_history||[]),{{at:now,reviewer,action:row.review_action,note:row.reviewer_note}}];return row}});const text=rows.map(x=>JSON.stringify(x)).join('\\n')+'\\n';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{{type:'application/jsonl'}}));a.download='golden_review_completed.jsonl';a.click()}}</script></body></html>''', encoding="utf-8")
+    manifest = {"schema_version": GOLDEN_REVIEW_VERSION, "status": "ready_to_freeze" if reviewed_count == len(populated) and 20 <= action_counts["approve"] + action_counts["edit"] <= 25 else "pending_human_review", "input_row_count": len(rows), "populated_item_count": len(populated), "reviewed_populated_item_count": reviewed_count, "approved_count": action_counts["approve"], "edited_count": action_counts["edit"], "excluded_count": action_counts["exclude"], "pending_populated_count": action_counts["pending"], "optional_slot_count": len(optional_rows), "optional_completed_count": len(optional_completed), "system_output_hidden": True, "review_source": str(completed.resolve()) if completed.exists() else str(draft_path.resolve()), "review_html": str(page.resolve()), "review_template": str(template.resolve())}
     (output_dir / "golden_review_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest
 
 
 def freeze_phase711_golden(*, reviewed_path: Path, output_path: Path, reviewer: str, golden_version: str) -> dict[str, Any]:
-    """Validate and freeze a completed private golden review."""
+    """Freeze reviewed existing positives; empty expansion templates are ignored."""
     rows = _read_jsonl(reviewed_path)
-    included = [row for row in rows if row.get("review_action") in {"approve", "edit"}]
     if not reviewer.strip() or not golden_version.strip():
         raise ValueError("reviewer and golden_version are required")
-    if not 40 <= len(included) <= 50:
-        raise ValueError(f"frozen golden must contain 40-50 reviewed items, got {len(included)}")
-    counts = Counter(str(row.get("selection_source") or "") for row in included)
-    for source, minimum in (("independent_important", 10), ("hard_negative", 10), ("background_overestimate", 5)):
-        if counts[source] < minimum:
-            raise ValueError(f"frozen golden needs at least {minimum} {source} items, got {counts[source]}")
-    required = ("gold_claim", "supporting_text", "claim_type", "expected_theme", "speaker_requirement", "verification_requirement")
-    for row in included:
-        if any(not str(row.get(key) or "").strip() for key in required) or any(value is None for value in row.get("supporting_time_range", [])):
-            raise ValueError(f"golden item is incomplete: {row.get('review_item_id')}")
+    nonempty = [row for row in rows if _golden_has_content(row)]
+    incomplete = [row for row in nonempty if not _golden_is_complete(row)]
+    if incomplete:
+        raise ValueError(f"golden contains {len(incomplete)} partially filled incomplete rows: {', '.join(str(row.get('review_item_id')) for row in incomplete[:5])}")
+    existing = [row for row in nonempty if row.get("selection_source") == "existing_reviewer_draft"]
+    invalid_actions = [row for row in existing if row.get("review_action") not in {"approve", "edit", "exclude"}]
+    if invalid_actions:
+        raise ValueError(f"all {len(existing)} populated existing items must be reviewed; pending={len(invalid_actions)}: {', '.join(str(row.get('gold_id')) for row in invalid_actions[:5])}")
+    included = [row for row in existing if row.get("review_action") in {"approve", "edit"}]
+    if not 20 <= len(included) <= 25:
+        raise ValueError(f"YC golden v2 must freeze 20-25 approved/edited existing positives, got {len(included)}")
+    for row in existing:
         if row.get("system_output_hidden") is not True:
             raise ValueError(f"golden item was not reviewed blind: {row.get('review_item_id')}")
     frozen_at = _now()
     frozen = [{**row, "schema_version": "phase_7_1_1_frozen_golden_v1", "golden_version": golden_version, "frozen_at": frozen_at, "reviewer": reviewer, "system_output_hidden": True} for row in included]
+    if any(not str(row.get("gold_claim") or "").strip() or not str(row.get("supporting_text") or "").strip() for row in frozen):
+        raise ValueError("frozen golden cannot contain empty claim or support")
     _write_jsonl(output_path, frozen)
-    manifest = {"schema_version": "phase_7_1_1_frozen_golden_manifest_v1", "golden_version": golden_version, "frozen_at": frozen_at, "reviewer": reviewer, "system_output_hidden": True, "item_count": len(frozen), "selection_counts": dict(counts), "change_history_present": all(bool(row.get("change_history")) for row in frozen), "output": str(output_path.resolve())}
-    (output_path.parent / f"{output_path.stem}.manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return manifest
+    decisions_path = output_path.parent / "golden_review_decisions.jsonl"
+    _write_jsonl(decisions_path, existing)
+    optional_completed = [row for row in nonempty if row.get("selection_source") != "existing_reviewer_draft"]
+    report = {"schema_version": "phase_7_1_1_golden_freeze_report_v1", "golden_version": golden_version, "frozen_at": frozen_at, "reviewer": reviewer, "system_output_hidden": True, "input_row_count": len(rows), "populated_existing_count": len(existing), "empty_template_ignored_count": len(rows) - len(nonempty), "optional_expansion_completed_count": len(optional_completed), "approved_count": sum(row.get("review_action") == "approve" for row in existing), "edited_count": sum(row.get("review_action") == "edit" for row in existing), "excluded_count": sum(row.get("review_action") == "exclude" for row in existing), "frozen_count": len(frozen), "output": str(output_path.resolve()), "review_decisions": str(decisions_path.resolve())}
+    (output_path.parent / "golden_freeze_report.md").write_text(f'''# Golden Freeze Report
+
+- golden version: `{golden_version}`
+- input rows: {report["input_row_count"]}
+- populated existing items: {report["populated_existing_count"]}
+- approved: {report["approved_count"]}
+- edited: {report["edited_count"]}
+- excluded: {report["excluded_count"]}
+- frozen positive golden: {report["frozen_count"]}
+- empty optional templates ignored: {report["empty_template_ignored_count"]}
+- optional expansion items completed: {report["optional_expansion_completed_count"]}
+- system output hidden during review: true
+
+Phase 7.1.1b optional expansion was not required for this freeze.
+''', encoding="utf-8")
+    (output_path.parent / f"{output_path.stem}.manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return report

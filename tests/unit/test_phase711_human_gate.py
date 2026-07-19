@@ -49,24 +49,43 @@ class Phase711HumanGateTests(unittest.TestCase):
             self.assertEqual(claims_before, (media_root / "intelligence" / "claims.jsonl").read_bytes())
             self.assertEqual(evidence_before, (media_root / "intelligence" / "evidence.jsonl").read_bytes())
 
-    def test_golden_review_is_blind_and_freeze_requires_complete_40_to_50_items(self):
+    def test_existing_golden_freezes_without_optional_slots_after_all_populated_are_reviewed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            package = generate_phase711_golden_review(draft_path=FIXTURE / "golden.jsonl", output_dir=root / "golden_review")
+            source = read_jsonl(FIXTURE / "golden.jsonl")
+            draft_rows = [{**source[index % len(source)], "gold_id": f"gold_{index:03d}"} for index in range(25)]
+            draft = root / "draft.jsonl"
+            draft.write_text("".join(json.dumps(row) + "\n" for row in draft_rows), encoding="utf-8")
+            package = generate_phase711_golden_review(draft_path=draft, output_dir=root / "golden_review")
             rows = read_jsonl(Path(package["review_template"]))
-            self.assertEqual(len(rows), 28)
+            self.assertEqual(len(rows), 50)
             self.assertTrue(all(row["system_output_hidden"] for row in rows))
-            # The public fixture has only three draft items; add enough synthetic
-            # existing positives to exercise the 40-50-item freeze contract.
-            while len(rows) < 50:
-                rows.append({**rows[0], "review_item_id": f"extra.{len(rows)}", "gold_id": f"extra_{len(rows)}", "selection_source": "existing_reviewer_draft"})
-            for index, row in enumerate(rows):
-                row.update({"review_action": "approve", "gold_claim": row.get("gold_claim") or f"Claim {index}", "supporting_text": row.get("supporting_text") or f"Evidence {index}", "supporting_time_range": [float(index), float(index + 1)], "claim_type": row.get("claim_type") or "fact", "value_types": row.get("value_types") or ["trend_signal"], "expected_theme": row.get("expected_theme") or "test", "why_valuable": row.get("why_valuable") or "Independent review", "speaker_requirement": row.get("speaker_requirement") or "section", "verification_requirement": row.get("verification_requirement") or "none", "reviewer": "tester", "system_output_hidden": True, "change_history": [{"action": "approve"}]})
+            existing = [row for row in rows if row["selection_source"] == "existing_reviewer_draft"]
+            for index, row in enumerate(existing):
+                row.update({"review_action": "approve" if index < 22 else "exclude" if index == 22 else "pending", "reviewer": "tester", "system_output_hidden": True, "change_history": [{"action": "review"}]})
             reviewed = root / "reviewed.jsonl"
             reviewed.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "pending=2"):
+                freeze_phase711_golden(reviewed_path=reviewed, output_path=root / "frozen.jsonl", reviewer="tester", golden_version="gold_v2")
+            existing[-2]["review_action"] = "approve"
+            existing[-1]["review_action"] = "exclude"
+            reviewed.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
             result = freeze_phase711_golden(reviewed_path=reviewed, output_path=root / "frozen.jsonl", reviewer="tester", golden_version="gold_v2")
-            self.assertEqual(result["item_count"], 50)
+            self.assertEqual(result["populated_existing_count"], 25)
+            self.assertEqual(result["empty_template_ignored_count"], 25)
+            self.assertEqual(result["frozen_count"], 23)
             self.assertTrue(result["system_output_hidden"])
+
+    def test_half_filled_optional_slot_is_rejected_instead_of_silently_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = read_jsonl(Path(generate_phase711_golden_review(draft_path=FIXTURE / "golden.jsonl", output_dir=root / "golden_review")["review_template"]))
+            optional = next(row for row in rows if row["selection_source"] == "independent_important")
+            optional["gold_claim"] = "Half-filled optional claim"
+            reviewed = root / "reviewed.jsonl"
+            reviewed.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "partially filled incomplete"):
+                freeze_phase711_golden(reviewed_path=reviewed, output_path=root / "frozen.jsonl", reviewer="tester", golden_version="gold_v2")
 
 
 if __name__ == "__main__":
