@@ -1,0 +1,282 @@
+{
+  "schema_version": "phase_7_1_evaluation_v2",
+  "gold_count": 24,
+  "claim_count": 285,
+  "evidence_count": 266,
+  "metrics": {
+    "all": {
+      "gold_count": 24,
+      "matched_count": 24,
+      "claim_precision_proxy": 0.084211,
+      "claim_recall": 1.0,
+      "claim_f1": 0.15534
+    },
+    "failure_mode": {
+      "gold_count": 5,
+      "matched_count": 5,
+      "claim_precision_proxy": null,
+      "claim_recall": 1.0,
+      "claim_f1": null
+    },
+    "hidden_assumption": {
+      "gold_count": 4,
+      "matched_count": 4,
+      "claim_precision_proxy": null,
+      "claim_recall": 1.0,
+      "claim_f1": null
+    },
+    "macro_route": {
+      "gold_count": 5,
+      "matched_count": 5,
+      "claim_precision_proxy": null,
+      "claim_recall": 1.0,
+      "claim_f1": null
+    },
+    "non_consensus": {
+      "gold_count": 5,
+      "matched_count": 5,
+      "claim_precision_proxy": null,
+      "claim_recall": 1.0,
+      "claim_f1": null
+    },
+    "quantitative_entity": {
+      "gold_count": 5,
+      "matched_count": 5,
+      "claim_precision_proxy": null,
+      "claim_recall": 1.0,
+      "claim_f1": null
+    },
+    "non_consensus_recall": 1.0,
+    "failure_mode_recall": 1.0,
+    "quantitative_claim_recall": 1.0,
+    "boundary_condition_recall": 1.0
+  },
+  "meaningful_omission_rate": 0.0,
+  "evidence_traceability_rate": 1.0,
+  "unsupported_claim_count": 0,
+  "exact_attribution_requirement_unmet_count": 24,
+  "speaker_name_mismatch_count": 0,
+  "entity_risk_detection_recall": 0.5,
+  "numeric_risk_detection_recall": 0.7,
+  "negation_risk_detection_recall": 0.363636,
+  "speaker_risk_detection_recall": 0.0,
+  "matches": [
+    {
+      "gold_id": "yc_claim_gold_001",
+      "claim_id": "cl_d35ee81c3ca1b89b",
+      "score": 0.771811,
+      "category": "macro_route",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_002",
+      "claim_id": "cl_0830a450ea6e4e43",
+      "score": 0.978639,
+      "category": "macro_route",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_003",
+      "claim_id": "cl_eb896a78b1f95fbf",
+      "score": 0.688622,
+      "category": "macro_route",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_004",
+      "claim_id": "cl_dc1863aa5c2512c8",
+      "score": 0.794518,
+      "category": "macro_route",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_005",
+      "claim_id": "cl_ebab8c529c45dcb1",
+      "score": 0.712892,
+      "category": "macro_route",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_006",
+      "claim_id": "cl_ee490cb809ab7979",
+      "score": 0.782119,
+      "category": "non_consensus",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_007",
+      "claim_id": "cl_0106e52ba6f3e078",
+      "score": 0.673825,
+      "category": "non_consensus",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_008",
+      "claim_id": "cl_96603376b6e31b23",
+      "score": 0.617925,
+      "category": "non_consensus",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_009",
+      "claim_id": "cl_04d5ecdec7255b05",
+      "score": 0.702553,
+      "category": "non_consensus",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_010",
+      "claim_id": "cl_4ab61a5fc60191f0",
+      "score": 0.85676,
+      "category": "non_consensus",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_011",
+      "claim_id": "cl_56ad51d82035ad0e",
+      "score": 0.683607,
+      "category": "failure_mode",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_012",
+      "claim_id": "cl_c69b4845a129d743",
+      "score": 0.870286,
+      "category": "failure_mode",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_013",
+      "claim_id": "cl_20ebce66df87b1f5",
+      "score": 0.776407,
+      "category": "failure_mode",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_014",
+      "claim_id": "cl_b8729721189349da",
+      "score": 0.650317,
+      "category": "failure_mode",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_015",
+      "claim_id": "cl_879fd18391ace6d5",
+      "score": 0.723731,
+      "category": "failure_mode",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_016",
+      "claim_id": "cl_4a3c360a9cb79f72",
+      "score": 0.702579,
+      "category": "quantitative_entity",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_017",
+      "claim_id": "cl_d4fb1a9890b09e84",
+      "score": 0.692697,
+      "category": "quantitative_entity",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_018",
+      "claim_id": "cl_7d850be55413306d",
+      "score": 0.976844,
+      "category": "quantitative_entity",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_019",
+      "claim_id": "cl_08b2fb2099459d90",
+      "score": 0.570072,
+      "category": "quantitative_entity",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_020",
+      "claim_id": "cl_fce5be94cfd90a47",
+      "score": 0.749655,
+      "category": "quantitative_entity",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_021",
+      "claim_id": "cl_fdf0760917aab9ca",
+      "score": 0.747319,
+      "category": "hidden_assumption",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_023",
+      "claim_id": "cl_5d06bca35f412476",
+      "score": 0.632867,
+      "category": "hidden_assumption",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_024",
+      "claim_id": "cl_71ea7e45c1fb7375",
+      "score": 0.661885,
+      "category": "hidden_assumption",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    },
+    {
+      "gold_id": "yc_claim_gold_025",
+      "claim_id": "cl_ea0eb413b3b6f191",
+      "score": 0.813886,
+      "category": "hidden_assumption",
+      "theme_match": true,
+      "exact_attribution_requirement_met": false,
+      "speaker_name_match": null
+    }
+  ],
+  "unmatched_claim_count": 261
+}

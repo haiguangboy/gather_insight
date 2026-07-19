@@ -50,7 +50,7 @@ The draft contains 25 items: five macro-route claims, five non-consensus claims,
 | Evidence traceability | 100% | 100% |
 | Unsupported claim count | 0 | 0 |
 | Claim precision proxy | 8.77% | 11.01% |
-| Wrong-speaker gold matches | 25 | 4 |
+| Exact-attribution requirement unmet | 25 | 4 |
 | Entity-risk detection recall | 50.00% | 85.71% |
 | Numeric-risk detection recall | 70.00% | 100% |
 | Negation-risk detection recall | 36.36% | 72.73% |
@@ -114,4 +114,3 @@ Phase 7.0 used a coarse proxy candidate layer and recovered only part of the non
 - Candidate evidence: **B**. Traceability is complete, but candidate precision, risk detection, and exact speaker requirements still need bounded review.
 - Exact attribution / quotation: **C** for no-uListen and **B** for Result B. Exact speaker, entities, numbers, negation, and quotations remain verification tasks.
 - Readiness for Phase 7.2 cross-source theme aggregation: **B**. The data contracts are ready for limited aggregation with verification state preserved; independently freezing the golden and reviewing top claims should precede treating aggregated conclusions as publishable facts.
-

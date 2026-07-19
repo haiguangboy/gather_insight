@@ -14,7 +14,9 @@
     "why_valuable": {"type": "string"},
     "speaker_requirement": {"type": "string"},
     "verification_requirement": {"type": "string"},
-    "expected_risks": {"type": "array", "items": {"enum": ["entity", "numeric", "negation"]}},
+    "expected_risks": {"type": "array", "items": {"enum": ["entity", "numeric", "negation", "speaker"]}, "uniqueItems": true},
+    "expected_speaker": {"type": "string"},
+    "epistemic_status": {"type": "string"},
     "category": {"type": "string"}
   },
   "additionalProperties": true

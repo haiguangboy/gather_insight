@@ -79,6 +79,6 @@ The adaptation command is only for a reviewer-confirmed legacy export. It preser
 
 ## Metrics
 
-The finalizer reports candidate acceptance, actual precision, low-value and incorrect rejection, duplicate and merge rates, candidates per canonical claim, entailment accuracy, condition preservation, wrong-speaker accepted claims, accepted-claim verification, and average human review time. These metrics are intentionally unavailable while decisions are blank; no placeholder acceptance or precision is fabricated.
+The finalizer reports candidate acceptance, actual precision, low-value and incorrect rejection, duplicate and merge rates, candidates per canonical claim, entailment accuracy, condition preservation, exact-attribution requirements, accepted-claim verification, and average human review time. These metrics are intentionally unavailable while decisions are blank; no placeholder acceptance or precision is fabricated.
 
 Only `accepted_claims.jsonl` may be consumed by Phase 7.2. The current private YC package is therefore **pending human review**, and Phase 7.2 remains gated.

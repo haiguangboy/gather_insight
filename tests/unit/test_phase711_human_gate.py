@@ -44,6 +44,8 @@ class Phase711HumanGateTests(unittest.TestCase):
             report = finalize_phase711_review(media_root=media_root, decisions_path=decisions)
             self.assertEqual(report["metrics"]["reviewed_candidate_count"], len(rows))
             self.assertEqual(report["canonical_claim_count"], 1)
+            self.assertIn("exact_attribution_requirement_unmet_accepted_claim_count", report["metrics"])
+            self.assertNotIn("wrong_speaker_accepted_claim_count", report["metrics"])
             self.assertEqual(len(read_jsonl(media_root / "intelligence" / "accepted_claims.jsonl")), 1)
             self.assertEqual(len(read_jsonl(media_root / "intelligence" / "rejected_claims.jsonl")), len(rows) - 1)
             self.assertEqual(claims_before, (media_root / "intelligence" / "claims.jsonl").read_bytes())
@@ -91,7 +93,7 @@ class Phase711HumanGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "legacy.jsonl"
-            rows = [{"selection_source": "existing_reviewer_draft", "gold_claim": "A", "supporting_text": "Evidence", "supporting_time_range": [1, 2], "claim_type": "fact", "expected_theme": "test", "review_action": "pending"}, {"selection_source": "independent_important", "gold_claim": "", "supporting_text": "", "supporting_time_range": [None, None], "review_action": "pending"}]
+            rows = [{"selection_source": "existing_reviewer_draft", "gold_claim": "A", "supporting_text": "Evidence", "supporting_time_range": [1, 2], "claim_type": "fact", "expected_theme": "test", "review_action": "pending", "expected_risks": ["未必"]}, {"selection_source": "independent_important", "gold_claim": "", "supporting_text": "", "supporting_time_range": [None, None], "review_action": "pending"}]
             source.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
             before = source.read_bytes()
             output = root / "adapted.jsonl"
@@ -99,8 +101,11 @@ class Phase711HumanGateTests(unittest.TestCase):
             adapted = read_jsonl(output)
             self.assertEqual(result["legacy_pending_promoted_to_approve"], 1)
             self.assertEqual(adapted[0]["review_action"], "approve")
+            self.assertEqual(adapted[0]["expected_risks"], [])
+            self.assertEqual(adapted[0]["epistemic_status"], "uncertain")
             self.assertEqual(adapted[1]["review_action"], "optional")
             self.assertEqual(source.read_bytes(), before)
+            self.assertNotIn(str(root), result["source"])
 
 
 if __name__ == "__main__":

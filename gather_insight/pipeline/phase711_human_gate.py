@@ -50,6 +50,8 @@ DECISIONS = {
     "needs_speaker_verification",
 }
 GOLDEN_REVIEW_VERSION = "phase_7_1_1_golden_review_v1"
+_GOLDEN_ALLOWED_RISKS = {"entity", "numeric", "negation", "speaker"}
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -65,6 +67,14 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _repo_relative(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(_REPO_ROOT))
+    except ValueError:
+        return path.name
 
 
 def _decision_row(candidate: dict[str, Any], claim: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
@@ -256,7 +266,7 @@ def finalize_phase711_review(*, media_root: Path, decisions_path: Path, output_d
     fully_supported = sum(row.get("entailment_label") == "fully_supported" for row in valid_rows)
     labeled_entailment = sum(bool(row.get("entailment_label")) for row in valid_rows)
     accepted_verified = sum(row.get("verification_status") == "verified" for row in accepted)
-    wrong_speaker = sum(row.get("speaker_status") not in {"source_provided", "audio_confirmed"} for row in accepted)
+    exact_attribution_unmet = sum(row.get("speaker_status") not in {"source_provided", "audio_confirmed"} for row in accepted)
     accepted_candidate_count = sum(row.get("decision") in {"accept", "merge_into"} for row in valid_rows)
     rejected_candidate_count = sum(str(row.get("decision", "")).startswith("reject_") for row in valid_rows)
     risk_priority_counts = Counter()
@@ -285,7 +295,7 @@ def finalize_phase711_review(*, media_root: Path, decisions_path: Path, output_d
         "average_candidates_per_canonical_claim": round(accepted_candidate_count / max(1, len(accepted)), 6),
         "claim_evidence_entailment_accuracy": round(fully_supported / max(1, labeled_entailment), 6),
         "condition_preservation_accuracy": round(sum(row.get("condition_preservation") == "preserved" for row in valid_rows if row.get("condition_preservation") != "not_applicable") / max(1, sum(row.get("condition_preservation") != "not_applicable" for row in valid_rows)), 6),
-        "wrong_speaker_accepted_claim_count": wrong_speaker,
+        "exact_attribution_requirement_unmet_accepted_claim_count": exact_attribution_unmet,
         "accepted_claim_verification_rate": round(accepted_verified / max(1, len(accepted)), 6),
         "average_human_review_seconds": round(sum(float(row.get("review_seconds") or 0.0) for row in valid_rows) / max(1, reviewed), 3),
         "entailment_label_counts": dict(Counter(str(row.get("entailment_label") or "unlabeled") for row in valid_rows)),
@@ -322,7 +332,7 @@ This report is generated only from human `review_decisions.jsonl`. It does not m
 - condition preservation accuracy: {metrics["condition_preservation_accuracy"]:.3f}
 - overgeneralized claims: {metrics["overgeneralized_claim_count"]}
 - claims missing conditions: {metrics["missing_condition_claim_count"]}
-- wrong-speaker accepted claims: {metrics["wrong_speaker_accepted_claim_count"]}
+- accepted claims with exact-attribution requirement unmet: {metrics["exact_attribution_requirement_unmet_accepted_claim_count"]}
 - accepted claim verification rate: {metrics["accepted_claim_verification_rate"]:.3f}
 - average human review time (seconds): {metrics["average_human_review_seconds"]:.1f}
 
@@ -358,6 +368,13 @@ def _golden_has_content(row: dict[str, Any]) -> bool:
 def _golden_is_complete(row: dict[str, Any]) -> bool:
     times = row.get("supporting_time_range") or []
     return bool(all(str(row.get(key) or "").strip() for key in _GOLDEN_REQUIRED) and len(times) == 2 and all(value is not None for value in times))
+
+
+def _validate_expected_risks(rows: list[dict[str, Any]]) -> None:
+    for row in rows:
+        invalid = sorted({str(value) for value in row.get("expected_risks", [])} - _GOLDEN_ALLOWED_RISKS)
+        if invalid:
+            raise ValueError(f"golden {row.get('gold_id')} has invalid expected_risks: {invalid}")
 
 
 def _selected(value: str, current: str) -> str:
@@ -400,9 +417,9 @@ def generate_phase711_golden_review(*, draft_path: Path, output_dir: Path, revie
     version = next((str(row.get("golden_version") or "") for row in rows if row.get("golden_version")), "yc_claim_golden_v2")
     page = output_dir / "golden_review.html"
     page.write_text(f'''<!doctype html><html><head><meta charset="utf-8"><title>Phase 7.1.1 golden review</title><style>body{{font:14px/1.5 system-ui;max-width:1100px;margin:24px auto}}.gold{{border:1px solid #bbb;padding:16px;margin:18px 0;background:#fffdf7}}.optional{{background:#f5f7f9}}.kind{{font-weight:bold}}.form{{display:grid;gap:8px}}.form label{{display:grid;grid-template-columns:190px 1fr;gap:8px}}textarea{{min-height:70px}}.top{{position:sticky;top:0;background:white;padding:12px;border-bottom:1px solid #aaa;z-index:2}}.warning{{background:#fff2cc;padding:10px}}.progress{{display:flex;gap:14px;flex-wrap:wrap;font-weight:600}}details.expansion{{border:1px solid #9aa;padding:12px;background:#eef3f7}}</style></head><body><div class="top"><h1>Phase 7.1.1a — Review and Freeze Existing Golden</h1><p class="warning">System hit/miss status is hidden. This page contains {len(populated)} populated items and {len(optional_rows)} optional empty authoring slots. Optional slots do not count as pending or block freeze.</p><div class="progress"><span>populated: <b id="p-populated">0</b></span><span>reviewed populated: <b id="p-reviewed">0</b></span><span>approved: <b id="p-approved">0</b></span><span>edited: <b id="p-edited">0</b></span><span>excluded: <b id="p-excluded">0</b></span><span>optional expansion completed: <b id="p-optional">0</b></span></div><label>Reviewer <input id="reviewer" value="{html.escape(reviewer, quote=True)}"></label><label> Golden version <input id="version" value="{html.escape(version, quote=True)}"></label><button onclick="downloadGolden()">Download reviewed golden JSONL</button></div><h1>Populated Existing Golden — {len(populated)} populated items</h1>{''.join(existing_cards)}<details class="expansion"><summary><strong>Optional Golden Expansion — {len(optional_rows)} authoring slots (default collapsed, non-blocking)</strong></summary><p>These slots are Phase 7.1.1b material. Leave them empty to exclude them from progress and freeze.</p>{''.join(optional_cards)}</details><script>function values(el){{return el.value.split(',').map(x=>x.trim()).filter(Boolean)}}function content(card){{return card.querySelector('.claim').value.trim()!==''||card.querySelector('.support').value.trim()!==''||card.querySelector('.start').value!==''||card.querySelector('.end').value!==''||card.querySelector('.claim-type').value.trim()!==''||card.querySelector('.theme').value.trim()!==''}}function progress(){{const populated=[...document.querySelectorAll('.gold.populated')].filter(content);const actions=populated.map(x=>x.querySelector('.action').value);document.getElementById('p-populated').textContent=populated.length;document.getElementById('p-reviewed').textContent=actions.filter(x=>['approve','edit','exclude'].includes(x)).length;document.getElementById('p-approved').textContent=actions.filter(x=>x==='approve').length;document.getElementById('p-edited').textContent=actions.filter(x=>x==='edit').length;document.getElementById('p-excluded').textContent=actions.filter(x=>x==='exclude').length;document.getElementById('p-optional').textContent=[...document.querySelectorAll('.gold.optional')].filter(content).length}}document.addEventListener('input',progress);document.addEventListener('change',progress);progress();function downloadGolden(){{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){{alert('Reviewer required');return}}const version=document.getElementById('version').value.trim();const now=new Date().toISOString();const rows=[...document.querySelectorAll('.gold')].map(card=>{{const row=JSON.parse(card.dataset.row);row.review_action=card.querySelector('.action').value;row.gold_claim=card.querySelector('.claim').value;row.supporting_text=card.querySelector('.support').value;const start=card.querySelector('.start').value,end=card.querySelector('.end').value;row.supporting_time_range=[start===''?null:Number(start),end===''?null:Number(end)];row.claim_type=card.querySelector('.claim-type').value;row.value_types=values(card.querySelector('.value-types'));row.expected_theme=card.querySelector('.theme').value;row.why_valuable=card.querySelector('.why').value;row.speaker_requirement=card.querySelector('.speaker').value;row.verification_requirement=card.querySelector('.verification').value;row.expected_risks=values(card.querySelector('.risks'));row.reviewer_note=card.querySelector('.note').value;row.reviewer=reviewer;row.golden_version=version;row.reviewed_at=now;row.system_output_hidden=true;row.change_history=[...(row.change_history||[]),{{at:now,reviewer,action:row.review_action,note:row.reviewer_note}}];return row}});const text=rows.map(x=>JSON.stringify(x)).join('\\n')+'\\n';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{{type:'application/jsonl'}}));a.download='golden_review_completed.jsonl';a.click()}}</script></body></html>''', encoding="utf-8")
-    manifest = {"schema_version": GOLDEN_REVIEW_VERSION, "status": "ready_to_freeze" if reviewed_count == len(populated) and 20 <= action_counts["approve"] + action_counts["edit"] <= 25 else "pending_human_review", "input_row_count": len(rows), "populated_item_count": len(populated), "reviewed_populated_item_count": reviewed_count, "approved_count": action_counts["approve"], "edited_count": action_counts["edit"], "excluded_count": action_counts["exclude"], "pending_populated_count": action_counts["pending"], "optional_slot_count": len(optional_rows), "optional_completed_count": len(optional_completed), "system_output_hidden": True, "review_source": str(completed.resolve()) if completed.exists() else str(draft_path.resolve()), "review_html": str(page.resolve()), "review_template": str(template.resolve())}
+    manifest = {"schema_version": GOLDEN_REVIEW_VERSION, "status": "ready_to_freeze" if reviewed_count == len(populated) and 20 <= action_counts["approve"] + action_counts["edit"] <= 25 else "pending_human_review", "input_row_count": len(rows), "populated_item_count": len(populated), "reviewed_populated_item_count": reviewed_count, "approved_count": action_counts["approve"], "edited_count": action_counts["edit"], "excluded_count": action_counts["exclude"], "pending_populated_count": action_counts["pending"], "optional_slot_count": len(optional_rows), "optional_completed_count": len(optional_completed), "system_output_hidden": True, "review_source": _repo_relative(completed if completed.exists() else draft_path), "review_html": _repo_relative(page), "review_template": _repo_relative(template)}
     (output_dir / "golden_review_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return manifest
+    return {**manifest, "review_html": str(page.resolve()), "review_template": str(template.resolve())}
 
 
 def freeze_phase711_golden(*, reviewed_path: Path, output_path: Path, reviewer: str, golden_version: str) -> dict[str, Any]:
@@ -415,6 +432,7 @@ def freeze_phase711_golden(*, reviewed_path: Path, output_path: Path, reviewer: 
     if incomplete:
         raise ValueError(f"golden contains {len(incomplete)} partially filled incomplete rows: {', '.join(str(row.get('review_item_id')) for row in incomplete[:5])}")
     existing = [row for row in nonempty if row.get("selection_source") == "existing_reviewer_draft"]
+    _validate_expected_risks(existing)
     invalid_actions = [row for row in existing if row.get("review_action") not in {"approve", "edit", "exclude"}]
     if invalid_actions:
         raise ValueError(f"all {len(existing)} populated existing items must be reviewed; pending={len(invalid_actions)}: {', '.join(str(row.get('gold_id')) for row in invalid_actions[:5])}")
@@ -432,7 +450,7 @@ def freeze_phase711_golden(*, reviewed_path: Path, output_path: Path, reviewer: 
     decisions_path = output_path.parent / "golden_review_decisions.jsonl"
     _write_jsonl(decisions_path, existing)
     optional_completed = [row for row in nonempty if row.get("selection_source") != "existing_reviewer_draft"]
-    report = {"schema_version": "phase_7_1_1_golden_freeze_report_v1", "golden_version": golden_version, "frozen_at": frozen_at, "reviewer": reviewer, "system_output_hidden": True, "input_row_count": len(rows), "populated_existing_count": len(existing), "empty_template_ignored_count": len(rows) - len(nonempty), "optional_expansion_completed_count": len(optional_completed), "approved_count": sum(row.get("review_action") == "approve" for row in existing), "edited_count": sum(row.get("review_action") == "edit" for row in existing), "excluded_count": sum(row.get("review_action") == "exclude" for row in existing), "frozen_count": len(frozen), "output": str(output_path.resolve()), "review_decisions": str(decisions_path.resolve())}
+    report = {"schema_version": "phase_7_1_1_golden_freeze_report_v1", "golden_version": golden_version, "frozen_at": frozen_at, "reviewer": reviewer, "system_output_hidden": True, "input_row_count": len(rows), "populated_existing_count": len(existing), "empty_template_ignored_count": len(rows) - len(nonempty), "optional_expansion_completed_count": len(optional_completed), "approved_count": sum(row.get("review_action") == "approve" for row in existing), "edited_count": sum(row.get("review_action") == "edit" for row in existing), "excluded_count": sum(row.get("review_action") == "exclude" for row in existing), "frozen_count": len(frozen), "output": _repo_relative(output_path), "review_decisions": _repo_relative(decisions_path)}
     (output_path.parent / "golden_freeze_report.md").write_text(f'''# Golden Freeze Report
 
 - golden version: `{golden_version}`
@@ -471,6 +489,13 @@ def adapt_phase711_golden_review(*, input_path: Path, output_path: Path, reviewe
     adapted: list[dict[str, Any]] = []
     for row in rows:
         value = dict(row)
+        invalid_risks = [str(item) for item in value.get("expected_risks", []) if str(item) not in _GOLDEN_ALLOWED_RISKS]
+        if invalid_risks:
+            value["expected_risks"] = [str(item) for item in value.get("expected_risks", []) if str(item) in _GOLDEN_ALLOWED_RISKS]
+            value["epistemic_status"] = "uncertain" if "未必" in invalid_risks else "legacy_non_risk_label"
+            note = f"Legacy non-risk label moved from expected_risks to epistemic_status: {', '.join(invalid_risks)}"
+            value["reviewer_note"] = "; ".join(part for part in (str(value.get("reviewer_note") or "").strip(), note) if part)
+            value["change_history"] = [*(value.get("change_history") or []), {"at": adapted_at, "reviewer": reviewer, "action": "schema_migration", "note": note}]
         if value.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(value) and value.get("review_action") == "pending":
             value["review_action"] = "approve"
             value["reviewer"] = reviewer
@@ -483,6 +508,6 @@ def adapt_phase711_golden_review(*, input_path: Path, output_path: Path, reviewe
         value["format_version"] = "phase_7_1_1_split_golden_v2"
         adapted.append(value)
     _write_jsonl(output_path, adapted)
-    report = {"schema_version": "phase_7_1_1_golden_adaptation_report_v1", "status": "ok", "source": str(input_path.resolve()), "output": str(output_path.resolve()), "input_row_count": len(rows), "populated_existing_count": sum(row.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(row) for row in adapted), "legacy_pending_promoted_to_approve": pending_promoted, "empty_optional_rows_normalized": empty_optional, "reviewer_confirmation": reviewer, "adapted_at": adapted_at}
+    report = {"schema_version": "phase_7_1_1_golden_adaptation_report_v1", "status": "ok", "source": _repo_relative(input_path), "output": _repo_relative(output_path), "input_row_count": len(rows), "populated_existing_count": sum(row.get("selection_source") == "existing_reviewer_draft" and _golden_has_content(row) for row in adapted), "legacy_pending_promoted_to_approve": pending_promoted, "empty_optional_rows_normalized": empty_optional, "reviewer_confirmation": reviewer, "adapted_at": adapted_at}
     (output_path.parent / "golden_review_adaptation_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report
