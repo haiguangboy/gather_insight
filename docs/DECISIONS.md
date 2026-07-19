@@ -59,3 +59,9 @@ General transcript records carry `source_is_fixture`, and fixture-specific `text
 Status: accepted, 2026-07-19.
 
 Phase 6.8 replaces whole-coarse-segment copying in the general `dual_source` and `official_dual` paths with semantic units and a forward-only beam path. Ollama BGE-M3 is the default real semantic scorer; DeepSeek is a bounded optional candidate judge and cannot generate transcript text. Character reuse, backward movement, and cross-speaker sharing are hard failures. Runtime provider/cache statistics belong in processing reports so stable fused outputs remain idempotent.
+
+## ADR-011 — Phase 6.9 uses established sentence-alignment DP
+
+Status: accepted, 2026-07-19.
+
+`alignment_algorithm: vecalign` uses the standard `(i, j)` parallel-document lattice with fixed `N:M` and gap transitions, percentile-calibrated skip cost, and raw or bidirectional margin-normalized cosine. A SentAlign-style scoring recurrence is separately selectable. The official CLI packages are not runtime dependencies because their NumPy/Cython/LaBSE file pipelines do not expose GatherInsight character provenance; the small transcript-scale recurrence is faithfully adapted in Python and documented with upstream license and complexity details. Phase 6.8 remains available as a baseline. DeepSeek and Qwen are not part of these paths.

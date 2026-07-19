@@ -218,6 +218,57 @@ class GeneralSourceModeTests(unittest.TestCase):
             self.assertEqual(source_hashes, {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in input_dir.glob("source_*_raw.md")})
             self.assertEqual(first["fusion_mode"], second["fusion_mode"])
 
+    def test_vecalign_mode_flows_through_general_workflow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            (input_dir / "manifest.json").write_text(manifest(), encoding="utf-8")
+            (input_dir / "source_ulisten_raw.md").write_text("0:00 - 0:20\n#### Intro\n\nAlice0:00\nAlpha begins.\nAlice0:10\nBeta ends.\n", encoding="utf-8")
+            (input_dir / "source_usetranscribe_raw.md").write_text("[0:00 - 0:20] Alpha begins. Beta ends.\n", encoding="utf-8")
+            semantic = {
+                "mode": "mock_semantic",
+                "alignment_algorithm": "vecalign",
+                "score_mode": "margin",
+                "accept_threshold": 0.5,
+                "time_padding_seconds": 20,
+            }
+            first = run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", semantic_config=semantic, logger=RunLogger("test-general", root / "global.jsonl", "vecalign_1"))
+            output = root / "data" / MEDIA_ID / "general"
+            records = [json.loads(line) for line in (output / "transcript_fused.jsonl").read_text(encoding="utf-8").splitlines()]
+            first_bytes = {name: (output / name).read_bytes() for name in ("transcript_fused.jsonl", "alignment_trace.jsonl", "unallocated_secondary.jsonl", "fusion_manifest.json")}
+            second = run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", semantic_config=semantic, logger=RunLogger("test-general", root / "global-2.jsonl", "vecalign_2"))
+            second_bytes = {name: (output / name).read_bytes() for name in first_bytes}
+
+            self.assertTrue(all(record["alignment_method"] == "vecalign_monotonic_dp" for record in records))
+            self.assertEqual(first["semantic_alignment_diagnostics"]["alignment_algorithm"], "vecalign")
+            self.assertEqual(first["semantic_alignment_diagnostics"]["secondary_character_reuse_rate"], 0.0)
+            self.assertEqual(first["semantic_alignment_diagnostics"]["monotonic_violation_count"], 0)
+            self.assertEqual(first["semantic_alignment_diagnostics"]["cross_speaker_shared_character_count"], 0)
+            self.assertEqual(first_bytes, second_bytes)
+            self.assertEqual(first["fusion_mode"], second["fusion_mode"])
+
+    def test_vecalign_official_dual_preserves_official_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            (input_dir / "manifest.json").write_text(manifest(), encoding="utf-8")
+            (input_dir / "source_ulisten_raw.md").write_text(ulisten(), encoding="utf-8")
+            (input_dir / "source_official_transcript_raw.md").write_text("## [0:00-0:10] Host\n\nHello from structure.\n", encoding="utf-8")
+            report = run_general_transcript_workflow(
+                input_dir=input_dir,
+                output_root=root / "data",
+                semantic_config={"mode": "mock_semantic", "alignment_algorithm": "vecalign", "score_mode": "raw_cosine", "accept_threshold": 0.0},
+                logger=RunLogger("test-general", root / "global.jsonl", "vecalign_official"),
+            )
+            record = json.loads((root / "data" / MEDIA_ID / "general" / "transcript_fused.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(report["fusion_mode"], "official_dual")
+            self.assertEqual(record["text_source"], "official_transcript")
+            self.assertEqual(record["text_official_raw"], "Hello from structure.")
+            self.assertIsNone(record["text_usetranscribe_raw"])
+            self.assertEqual(record["alignment_method"], "vecalign_monotonic_dp")
+
     def test_missing_ollama_model_is_explicitly_degraded(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

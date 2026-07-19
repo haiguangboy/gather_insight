@@ -13,6 +13,7 @@ from gather_insight.pipeline.semantic_alignment import align_semantically, alloc
 from gather_insight.pipeline.semantic_scorer import SemanticBackendUnavailable
 from gather_insight.pipeline.source_resolver import TranscriptCombinationResolution, resolve_transcript_combination
 from gather_insight.pipeline.transcript_fuser import FusedSegment, fuse_transcripts
+from gather_insight.pipeline.vecalign_alignment import align_vecalign
 from gather_insight.run_logging import RunLogger
 
 from .general_transcript_outputs import write_general_outputs
@@ -220,39 +221,89 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
         if resolution.fusion_mode == "dual_source":
             source_fixture = resolution.sources["usetranscribe"].is_fixture
             active_config = dict(semantic_config)
+            alignment_algorithm = str(active_config.get("alignment_algorithm", "phase_6_8_beam"))
             try:
-                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+                if alignment_algorithm in {"vecalign", "sentalign"}:
+                    aligned = align_vecalign(
+                        structure_segments=parsed_ulisten.segments,
+                        secondary_segments=parsed_use.segments,
+                        config_value=active_config,
+                        cache_root=semantic_cache_root,
+                        text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export",
+                        source_is_fixture=source_fixture,
+                    )
+                    records = aligned.records
+                else:
+                    aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+                    records = [allocation_record(allocation, aligned.units, text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", official=False, source_is_fixture=source_fixture) for allocation in aligned.allocations]
             except SemanticBackendUnavailable as exc:
                 logger.event("ERROR", "semantic_alignment.degraded", "semantic backend unavailable; using explicit lexical fallback", error=str(exc), requested_mode=active_config.get("mode"))
                 active_config = {**active_config, "mode": "lexical_only"}
-                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+                if alignment_algorithm in {"vecalign", "sentalign"}:
+                    aligned = align_vecalign(
+                        structure_segments=parsed_ulisten.segments,
+                        secondary_segments=parsed_use.segments,
+                        config_value=active_config,
+                        cache_root=semantic_cache_root,
+                        text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export",
+                        source_is_fixture=source_fixture,
+                    )
+                    records = aligned.records
+                else:
+                    aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+                    records = [allocation_record(allocation, aligned.units, text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", official=False, source_is_fixture=source_fixture) for allocation in aligned.allocations]
                 aligned.diagnostics["semantic_alignment_degraded"] = True
                 aligned.diagnostics["semantic_backend_error"] = str(exc)
-            records = [allocation_record(allocation, aligned.units, text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", official=False, source_is_fixture=source_fixture) for allocation in aligned.allocations]
             semantic_report_diagnostics = dict(aligned.diagnostics)
             semantic_diagnostics = _stable_semantic_mapping(semantic_report_diagnostics)
             fusion_diagnostics = {key: semantic_diagnostics[key] for key in ("secondary_segment_reuse_count", "cross_speaker_boundary_count", "adjacent_text_duplication_rate", "unconsumed_secondary_segment_count")}
-            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": aligned.judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
-            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(aligned.judge_metadata)}
+            judge_metadata = getattr(aligned, "judge_metadata", {"judge_backend": "none", "judge_model": None, "judge_call_count": 0})
+            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
+            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(judge_metadata)}
             alignment_trace = aligned.trace
             unallocated_units = [unit.as_dict() for unit in aligned.unallocated_units]
         elif resolution.fusion_mode == "official_dual":
             source_fixture = resolution.sources["official_transcript"].is_fixture
             active_config = dict(semantic_config)
+            alignment_algorithm = str(active_config.get("alignment_algorithm", "phase_6_8_beam"))
             try:
-                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+                if alignment_algorithm in {"vecalign", "sentalign"}:
+                    aligned = align_vecalign(
+                        structure_segments=parsed_ulisten.segments,
+                        secondary_segments=parsed_official.segments,
+                        config_value=active_config,
+                        cache_root=semantic_cache_root,
+                        text_source="official_transcript_format_fixture" if source_fixture else "official_transcript",
+                        source_is_fixture=source_fixture,
+                    )
+                    records = aligned.records
+                else:
+                    aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+                    records = [allocation_record(allocation, aligned.units, text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for allocation in aligned.allocations]
             except SemanticBackendUnavailable as exc:
                 logger.event("ERROR", "semantic_alignment.degraded", "semantic backend unavailable; using explicit lexical fallback", error=str(exc), requested_mode=active_config.get("mode"))
                 active_config = {**active_config, "mode": "lexical_only"}
-                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+                if alignment_algorithm in {"vecalign", "sentalign"}:
+                    aligned = align_vecalign(
+                        structure_segments=parsed_ulisten.segments,
+                        secondary_segments=parsed_official.segments,
+                        config_value=active_config,
+                        cache_root=semantic_cache_root,
+                        text_source="official_transcript_format_fixture" if source_fixture else "official_transcript",
+                        source_is_fixture=source_fixture,
+                    )
+                    records = aligned.records
+                else:
+                    aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+                    records = [allocation_record(allocation, aligned.units, text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for allocation in aligned.allocations]
                 aligned.diagnostics["semantic_alignment_degraded"] = True
                 aligned.diagnostics["semantic_backend_error"] = str(exc)
-            records = [allocation_record(allocation, aligned.units, text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for allocation in aligned.allocations]
             semantic_report_diagnostics = dict(aligned.diagnostics)
             semantic_diagnostics = _stable_semantic_mapping(semantic_report_diagnostics)
             fusion_diagnostics = {key: semantic_diagnostics[key] for key in ("secondary_segment_reuse_count", "cross_speaker_boundary_count", "adjacent_text_duplication_rate", "unconsumed_secondary_segment_count")}
-            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": aligned.judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
-            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(aligned.judge_metadata)}
+            judge_metadata = getattr(aligned, "judge_metadata", {"judge_backend": "none", "judge_model": None, "judge_call_count": 0})
+            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
+            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(judge_metadata)}
             alignment_trace = aligned.trace
             unallocated_units = [unit.as_dict() for unit in aligned.unallocated_units]
         elif resolution.fusion_mode == "structure_degraded":

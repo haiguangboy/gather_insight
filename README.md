@@ -46,6 +46,18 @@ python3 -m gather_insight fuse-general \
 
 This writes to `data/media/<media_id>/general/` and separates text review from speaker-attribution review. See `docs/PHASE_6_6_SOURCE_RESOLUTION.md` for the six-mode state machine.
 
+Phase 6.9 Vecalign-style local BGE-M3 alignment:
+
+```bash
+python3 -m gather_insight fuse-general \
+  --input-dir <input_dir> \
+  --semantic-mode local_semantic \
+  --alignment-algorithm vecalign \
+  --alignment-score-mode margin
+```
+
+Use `--alignment-score-mode raw_cosine` for the raw-cosine baseline. Phase 6.8 remains available with `--alignment-algorithm phase_6_8_beam`. Vecalign/SentAlign modes never call DeepSeek or Qwen.
+
 ## Manual transcript format
 
 ```markdown

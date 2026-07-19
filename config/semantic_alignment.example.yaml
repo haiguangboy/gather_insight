@@ -1,5 +1,7 @@
 semantic_alignment:
   mode: local_semantic
+  alignment_algorithm: vecalign
+  score_mode: margin
   time_padding_seconds: 30
   max_units_per_match: 6
   candidate_top_k: 12
@@ -10,6 +12,17 @@ semantic_alignment:
   ambiguity_margin_threshold: 0.08
   max_judge_calls: 24
   max_unit_chars: 260
+
+  vecalign:
+    # Vecalign supports configurable 1:N overlaps; six target sentences are
+    # needed for the observed YC sentence/structure granularity ratio.
+    max_alignment_size: 7
+    max_source_concatenations: 3
+    max_target_concatenations: 6
+    margin_k: 4
+    gap_percentile: 0.20
+    sentalign_score_cutoff: 0.40
+    sentalign_free_concatenations: 2
 
   weights:
     semantic_similarity: 0.45

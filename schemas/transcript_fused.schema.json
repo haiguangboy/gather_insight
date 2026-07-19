@@ -38,7 +38,7 @@
       "structure_source": {"enum": ["ulisten_manual_browser_copy", "official_transcript", "text_timeline"]},
       "text_source": {"enum": ["usetranscribe_manual_export", "usetranscribe_format_fixture", "official_transcript", "official_transcript_format_fixture", "ulisten_raw_degraded", "ulisten_raw_review_fallback", "spacing_reconstruction_fixture"]},
       "source_is_fixture": {"type": "boolean"},
-      "alignment_method": {"enum": ["timestamp_plus_normalized_text", "constrained_monotonic_semantic_alignment", "single_source_degraded", "single_source_no_alignment", "fixture_passthrough"]},
+      "alignment_method": {"enum": ["timestamp_plus_normalized_text", "constrained_monotonic_semantic_alignment", "vecalign_monotonic_dp", "sentalign_monotonic_dp", "single_source_degraded", "single_source_no_alignment", "fixture_passthrough"]},
       "alignment_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
       "needs_review": {"type": "boolean"},
       "youtube_url": {"type": "string"},
@@ -59,7 +59,9 @@
           "lexical_anchor_score": {"type": "number", "minimum": 0, "maximum": 1},
           "entity_consistency_score": {"type": "number", "minimum": 0, "maximum": 1},
           "time_prior_score": {"type": "number", "minimum": 0, "maximum": 1},
-          "sequence_context_score": {"type": "number", "minimum": 0, "maximum": 1}
+          "sequence_context_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "raw_cosine": {"type": ["number", "null"], "minimum": -1, "maximum": 1},
+          "margin_score": {"type": ["number", "null"]}
         },
         "additionalProperties": false
       },

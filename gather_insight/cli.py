@@ -77,6 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
     general.add_argument("--output-root", type=Path, default=Path("data/media"))
     general.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
     general.add_argument("--semantic-mode", choices=["lexical_only", "local_semantic", "hybrid_semantic", "mock_semantic"])
+    general.add_argument("--alignment-algorithm", choices=["phase_6_8_beam", "vecalign", "sentalign"])
+    general.add_argument("--alignment-score-mode", choices=["raw_cosine", "margin"])
     general.add_argument("--semantic-config", type=Path, help="YAML semantic_alignment configuration")
     general.add_argument("--semantic-cache-root", type=Path, default=Path("."))
     return parser
@@ -95,6 +97,10 @@ def _semantic_config(args: argparse.Namespace) -> dict[str, object]:
         value["mode"] = args.semantic_mode
     else:
         value.setdefault("mode", "lexical_only")
+    if args.alignment_algorithm:
+        value["alignment_algorithm"] = args.alignment_algorithm
+    if args.alignment_score_mode:
+        value["score_mode"] = args.alignment_score_mode
     return value
 
 
