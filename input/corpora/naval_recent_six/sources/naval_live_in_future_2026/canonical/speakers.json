@@ -1,0 +1,27 @@
+[
+  {
+    "speaker": "Daniel Francis",
+    "speaker_status": "mentioned_in_official_description",
+    "claim_attribution_allowed": false
+  },
+  {
+    "speaker": "Farbood Nivi",
+    "speaker_status": "mentioned_in_official_description",
+    "claim_attribution_allowed": false
+  },
+  {
+    "speaker": "Garry Tan",
+    "speaker_status": "mentioned_in_official_description",
+    "claim_attribution_allowed": false
+  },
+  {
+    "speaker": "Naval Ravikant",
+    "speaker_status": "mentioned_in_official_description",
+    "claim_attribution_allowed": false
+  },
+  {
+    "speaker": "unknown",
+    "speaker_status": "unknown",
+    "claim_attribution_allowed": false
+  }
+]

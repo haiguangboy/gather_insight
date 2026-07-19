@@ -1,0 +1,40 @@
+{
+  "actual_title": "Vibe Coding Hardware",
+  "chronological_index": 3,
+  "contained_by_source_id": "naval_ai_industrial_revolution_2026",
+  "contains_source_ids": [],
+  "discovered_at": "2026-07-19",
+  "duplicate_section_count": 13,
+  "http_status": 200,
+  "independence_group_id": "naval_frontier_founders_industrial_2026",
+  "new_material_section_count": 3,
+  "new_material_status": "serialized_overlap",
+  "next_source": "naval_waste_tokens_2026",
+  "official_page_named_participants": [
+    "Nivi",
+    "Naval Ravikant",
+    "Guillermo Rauch",
+    "Blake Scholl",
+    "Max Hodak"
+  ],
+  "overlaps_with": [
+    "naval_ai_industrial_revolution_2026",
+    "naval_regulatory_frontier_2026",
+    "naval_waste_tokens_2026"
+  ],
+  "previous_source": "naval_regulatory_frontier_2026",
+  "published_at": "2026-05-28",
+  "raw_html_cached": true,
+  "raw_html_sha256": "8a680eee5a8ba22a63b6fc70e67b3a771d9ec916c405b261c766c0ac35793493",
+  "schema_version": "phase_7_2a_v1",
+  "section_count": 16,
+  "site_rank": 4,
+  "snapshot_date": "2026-07-19",
+  "source_family_id": "naval_frontier_founders_industrial_2026",
+  "source_form": "serialized_part",
+  "source_id": "naval_vibe_coding_hardware_2026",
+  "title": "Vibe Coding Hardware",
+  "transcript_status": "official_transcript_present",
+  "url": "https://nav.al/hardware",
+  "word_count": 2202
+}

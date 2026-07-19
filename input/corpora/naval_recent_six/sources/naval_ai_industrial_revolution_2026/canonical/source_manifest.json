@@ -1,0 +1,44 @@
+{
+  "actual_title": "The AI Industrial Revolution",
+  "chronological_index": 5,
+  "contained_by_source_id": null,
+  "contains_source_ids": [
+    "naval_waste_tokens_2026",
+    "naval_vibe_coding_hardware_2026",
+    "naval_regulatory_frontier_2026"
+  ],
+  "discovered_at": "2026-07-19",
+  "duplicate_section_count": 60,
+  "http_status": 200,
+  "independence_group_id": "naval_frontier_founders_industrial_2026",
+  "new_material_section_count": 48,
+  "new_material_status": "contains_conservatively_detected_new_material",
+  "next_source": "naval_regulatory_frontier_2026",
+  "official_page_named_participants": [
+    "Nivi",
+    "Naval Ravikant",
+    "Guillermo Rauch",
+    "Blake Scholl",
+    "Max Hodak"
+  ],
+  "overlaps_with": [
+    "naval_regulatory_frontier_2026",
+    "naval_vibe_coding_hardware_2026",
+    "naval_waste_tokens_2026"
+  ],
+  "previous_source": "naval_live_in_future_2026",
+  "published_at": "2026-06-01",
+  "raw_html_cached": true,
+  "raw_html_sha256": "84b5738eb0179379b0a77bbeec9995f828f837fb31026bd2f3b3db19cc2d7cf8",
+  "schema_version": "phase_7_2a_v1",
+  "section_count": 108,
+  "site_rank": 2,
+  "snapshot_date": "2026-07-19",
+  "source_family_id": "naval_frontier_founders_industrial_2026",
+  "source_form": "full_compilation",
+  "source_id": "naval_ai_industrial_revolution_2026",
+  "title": "The AI Industrial Revolution",
+  "transcript_status": "official_transcript_present",
+  "url": "https://nav.al/industrial",
+  "word_count": 10516
+}

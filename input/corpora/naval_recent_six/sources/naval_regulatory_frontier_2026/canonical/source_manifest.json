@@ -1,0 +1,40 @@
+{
+  "actual_title": "The Regulatory Frontier",
+  "chronological_index": 4,
+  "contained_by_source_id": "naval_ai_industrial_revolution_2026",
+  "contains_source_ids": [],
+  "discovered_at": "2026-07-19",
+  "duplicate_section_count": 26,
+  "http_status": 200,
+  "independence_group_id": "naval_frontier_founders_industrial_2026",
+  "new_material_section_count": 4,
+  "new_material_status": "serialized_overlap",
+  "next_source": "naval_vibe_coding_hardware_2026",
+  "official_page_named_participants": [
+    "Nivi",
+    "Naval Ravikant",
+    "Guillermo Rauch",
+    "Blake Scholl",
+    "Max Hodak"
+  ],
+  "overlaps_with": [
+    "naval_ai_industrial_revolution_2026",
+    "naval_vibe_coding_hardware_2026",
+    "naval_waste_tokens_2026"
+  ],
+  "previous_source": "naval_ai_industrial_revolution_2026",
+  "published_at": "2026-05-29",
+  "raw_html_cached": true,
+  "raw_html_sha256": "faabcb35bae88ee7a143028642ae2e3b827a1c7e077f21dc1332d7359251e291",
+  "schema_version": "phase_7_2a_v1",
+  "section_count": 30,
+  "site_rank": 3,
+  "snapshot_date": "2026-07-19",
+  "source_family_id": "naval_frontier_founders_industrial_2026",
+  "source_form": "serialized_part",
+  "source_id": "naval_regulatory_frontier_2026",
+  "title": "The Regulatory Frontier",
+  "transcript_status": "official_transcript_present",
+  "url": "https://nav.al/regulatory",
+  "word_count": 3481
+}

@@ -1,0 +1,33 @@
+{
+  "actual_title": "Sell the Truth",
+  "chronological_index": 1,
+  "contained_by_source_id": null,
+  "contains_source_ids": [],
+  "discovered_at": "2026-07-19",
+  "duplicate_section_count": 0,
+  "http_status": 200,
+  "independence_group_id": "naval_sell_truth_2026",
+  "new_material_section_count": 22,
+  "new_material_status": "independent",
+  "next_source": "naval_nothing_ever_happens_over_2026",
+  "official_page_named_participants": [
+    "Nivi",
+    "Naval Ravikant"
+  ],
+  "overlaps_with": [],
+  "previous_source": "naval_waste_tokens_2026",
+  "published_at": "2026-05-11",
+  "raw_html_cached": true,
+  "raw_html_sha256": "7a400e1e5f95a856b43011ea05719c54e47c0c262d42335c770ee6a8892f3e11",
+  "schema_version": "phase_7_2a_v1",
+  "section_count": 22,
+  "site_rank": 6,
+  "snapshot_date": "2026-07-19",
+  "source_family_id": "naval_sell_truth_2026",
+  "source_form": "standalone_episode",
+  "source_id": "naval_sell_truth_2026",
+  "title": "Sell the Truth",
+  "transcript_status": "official_transcript_present",
+  "url": "https://nav.al/sell",
+  "word_count": 5603
+}

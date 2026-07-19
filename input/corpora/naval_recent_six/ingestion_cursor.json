@@ -1,0 +1,16 @@
+{
+  "archive_page": "https://nav.al/archive",
+  "last_checked_at": "2026-07-19",
+  "newest_seen_source": "Live in the Future",
+  "newest_seen_url": "https://nav.al/future",
+  "next_older_published_at": "2026-05-04",
+  "next_older_source": "‘Nothing Ever Happens’ Is Over",
+  "next_older_url": "https://nav.al/over",
+  "oldest_processed_source": "Sell the Truth",
+  "oldest_processed_url": "https://nav.al/sell",
+  "processed_source_count": 6,
+  "schema_version": "phase_7_2a_v1",
+  "site_order": "newest-to-oldest",
+  "snapshot_date": "2026-07-19",
+  "status": "ready_for_next_sequential_batch"
+}

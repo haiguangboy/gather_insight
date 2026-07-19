@@ -13,6 +13,7 @@ from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
 from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError, run_general_transcript_workflow
 from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
 from .pipeline.no_ulisten_trend_workflow import compare_phase7_trend, run_no_ulisten_trend
+from .pipeline.naval_recent_six import run_naval_recent_six
 from .pipeline.phase71_evaluator import evaluate_phase71
 from .pipeline.phase711_human_gate import adapt_phase711_golden_review, finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
@@ -156,6 +157,9 @@ def build_parser() -> argparse.ArgumentParser:
     golden_adapt.add_argument("--input", required=True, type=Path)
     golden_adapt.add_argument("--output", required=True, type=Path)
     golden_adapt.add_argument("--reviewer", required=True)
+    naval = sub.add_parser("ingest-naval-recent-six", help="Cache and analyze the fixed Phase 7.2A Naval official corpus")
+    naval.add_argument("--output-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
+    naval.add_argument("--offline", action="store_true", help="Require all six official HTML pages to be cached")
     return parser
 
 
@@ -392,6 +396,14 @@ def main(argv: list[str] | None = None) -> int:
             result = adapt_phase711_golden_review(input_path=args.input, output_path=args.output, reviewer=args.reviewer)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.1.1 golden adaptation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "ingest-naval-recent-six":
+        try:
+            result = run_naval_recent_six(output_dir=args.output_dir, offline=args.offline)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Naval recent-six ingestion failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

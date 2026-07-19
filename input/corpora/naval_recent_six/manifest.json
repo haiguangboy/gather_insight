@@ -1,0 +1,23 @@
+{
+  "analysis_order": "oldest-to-newest",
+  "corpus_id": "naval_recent_six",
+  "expected_source_ids": [
+    "naval_live_in_future_2026",
+    "naval_ai_industrial_revolution_2026",
+    "naval_regulatory_frontier_2026",
+    "naval_vibe_coding_hardware_2026",
+    "naval_waste_tokens_2026",
+    "naval_sell_truth_2026"
+  ],
+  "official_text_only": true,
+  "schema_version": "phase_7_2a_v1",
+  "site_order": "newest-to-oldest",
+  "snapshot_date": "2026-07-19",
+  "source_count": 6,
+  "source_families": [
+    "naval_frontier_founders_industrial_2026",
+    "naval_live_in_the_future_2026",
+    "naval_sell_truth_2026"
+  ],
+  "source_selection": "official_archive_contiguous_recent_six"
+}
