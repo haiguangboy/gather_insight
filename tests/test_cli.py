@@ -1,5 +1,7 @@
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -15,6 +17,22 @@ VTT_FIXTURE = Path(__file__).parent / "fixtures" / "youtube_export.vtt"
 
 
 class CliTests(unittest.TestCase):
+    def test_module_entrypoint_propagates_failure_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            (input_dir / "manifest.json").write_text(json.dumps({"youtube_url": URL}), encoding="utf-8")
+            completed = subprocess.run(
+                [sys.executable, "-m", "gather_insight", "fuse-general", "--input-dir", str(input_dir), "--output-root", str(root / "media")],
+                cwd=Path(__file__).parents[1],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("general fusion failed", completed.stderr)
+
     def test_unresolved_source_writes_durable_failure_report(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

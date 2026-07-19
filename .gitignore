@@ -12,3 +12,5 @@ tmp/
 logs/*.jsonl
 data/media/**/logs/*.jsonl
 data/media/_logs/*.jsonl
+data/media/*/general/
+input/

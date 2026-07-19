@@ -25,6 +25,28 @@ class UseTranscribeParserTests(unittest.TestCase):
         self.assertIsNone(result.segments[0].speaker)
         self.assertEqual(result.segments[0].text, "Alice: This text may look like a speaker label.")
 
+    def test_real_export_double_bracket_links_are_parsed(self):
+        raw = """# Example title
+
+## Summary
+
+- This summary must not become transcript text.
+
+## Transcript
+
+[[0:07]](https://www.youtube.com/watch?v=wE1ZgJdt4uM&t=7s)
+First transcript paragraph.
+
+[[0:33]](https://www.youtube.com/watch?v=wE1ZgJdt4uM&t=33s)
+Second transcript paragraph.
+"""
+        result = parse_usetranscribe_markdown(raw=raw, media_id=MEDIA_ID, youtube_url=YOUTUBE_URL, video_duration_seconds=60)
+        self.assertEqual(len(result.segments), 2)
+        self.assertEqual(result.segments[0].start_seconds, 7)
+        self.assertEqual(result.segments[0].end_seconds, 33)
+        self.assertEqual(result.segments[0].text, "First transcript paragraph.")
+        self.assertNotIn("summary", result.segments[0].text.lower())
+
     def test_final_open_segment_requires_duration(self):
         with self.assertRaises(ValueError):
             parse_usetranscribe_markdown(raw="[0:00] Text", media_id=MEDIA_ID, youtube_url=YOUTUBE_URL, video_duration_seconds=None)

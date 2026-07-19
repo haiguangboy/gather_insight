@@ -13,6 +13,9 @@ _RANGE_CUE = re.compile(
     rf"^\s*(?:#{{1,6}}\s*)?(?:\[)?(?P<start>{_TIMESTAMP})\s*(?:-|–|—|-->|to)\s*(?P<end>{_TIMESTAMP})(?:\])?(?:\([^)]*\))?\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
+_DOUBLE_LINKED_CUE = re.compile(
+    rf"^\s*(?:#{{1,6}}\s*)?\[\[(?P<start>{_TIMESTAMP})\]\](?:\([^)]*\))?\s*(?:[-–—|:])?\s*(?P<text>.*)$"
+)
 _LINKED_CUE = re.compile(
     rf"^\s*(?:#{{1,6}}\s*)?\[(?P<start>{_TIMESTAMP})\](?:\([^)]*\))?\s*(?:[-–—|:])?\s*(?P<text>.*)$"
 )
@@ -69,7 +72,7 @@ class UseTranscribeParseResult:
 
 
 def _cue(line: str) -> tuple[str, str | None, str] | None:
-    for pattern in (_RANGE_CUE, _LINKED_CUE, _PLAIN_CUE):
+    for pattern in (_RANGE_CUE, _DOUBLE_LINKED_CUE, _LINKED_CUE, _PLAIN_CUE):
         match = pattern.fullmatch(line)
         if match:
             return match.group("start"), match.groupdict().get("end"), match.group("text").strip()
@@ -161,4 +164,3 @@ def parse_usetranscribe_file(*, path: Path, media_id: str, youtube_url: str, vid
 
 def segments_as_dicts(result: UseTranscribeParseResult) -> list[dict[str, object]]:
     return [segment.as_dict() for segment in result.segments]
-
