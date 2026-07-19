@@ -1,0 +1,12 @@
+{
+  "schema_version": "phase_7_1_1_golden_adaptation_report_v1",
+  "status": "ok",
+  "source": "/home/yanghg/gather_insight/input/media/yt_wE1ZgJdt4uM/golden/phase_7_1_1_review/golden_review_completed.jsonl",
+  "output": "/home/yanghg/gather_insight/input/media/yt_wE1ZgJdt4uM/golden/phase_7_1_1_review/golden_review_completed_v2_compatible.jsonl",
+  "input_row_count": 50,
+  "populated_existing_count": 25,
+  "legacy_pending_promoted_to_approve": 2,
+  "empty_optional_rows_normalized": 25,
+  "reviewer_confirmation": "yhg",
+  "adapted_at": "2026-07-19T11:17:24Z"
+}
