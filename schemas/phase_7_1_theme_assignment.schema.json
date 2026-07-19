@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_theme_assignment.schema.json",
+  "type": "object",
+  "required": ["schema_version", "assignment_id", "media_id", "claim_id", "theme_id", "theme_label", "confidence", "assignment_method"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_theme_assignment_v1"},
+    "assignment_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "claim_id": {"type": "string"},
+    "theme_id": {"type": "string"},
+    "theme_label": {"type": "string"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "assignment_method": {"type": "string"}
+  },
+  "additionalProperties": true
+}

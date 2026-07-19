@@ -13,6 +13,8 @@ from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
 from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError, run_general_transcript_workflow
 from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
 from .pipeline.no_ulisten_trend_workflow import compare_phase7_trend, run_no_ulisten_trend
+from .pipeline.phase71_evaluator import evaluate_phase71
+from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
 
@@ -116,6 +118,23 @@ def build_parser() -> argparse.ArgumentParser:
     phase7_compare.add_argument("--blind-output-dir", required=True, type=Path)
     phase7_compare.add_argument("--ulisten-result-dir", required=True, type=Path)
     phase7_compare.add_argument("--output-dir", required=True, type=Path)
+    canonical = sub.add_parser("prepare-phase71-canonical", help="Build versioned Phase 7.1 canonical JSONL from a frozen transcript output")
+    canonical.add_argument("--input-dir", required=True, type=Path)
+    canonical.add_argument("--manifest", required=True, type=Path)
+    canonical.add_argument("--media-root", required=True, type=Path)
+    canonical.add_argument("--mode", required=True, choices=["high_quality_structure_mode", "dual_text_trend_mode"])
+    canonical.add_argument("--source-input-dir", type=Path)
+    extraction = sub.add_parser("extract-phase71", help="Extract evidence-bound claims and intelligence artifacts")
+    extraction.add_argument("--media-root", required=True, type=Path)
+    extraction.add_argument("--judge-backend", choices=["rules", "mock", "deepseek"], default="rules")
+    extraction.add_argument("--judge-config", type=Path)
+    extraction.add_argument("--judge-cache-root", type=Path, default=Path("."))
+    extraction.add_argument("--judge-max-claims", type=int, default=32)
+    phase71_eval = sub.add_parser("evaluate-phase71", help="Evaluate Phase 7.1 claims against a private golden set")
+    phase71_eval.add_argument("--golden", required=True, type=Path)
+    phase71_eval.add_argument("--claims", required=True, type=Path)
+    phase71_eval.add_argument("--evidence", required=True, type=Path)
+    phase71_eval.add_argument("--output", required=True, type=Path)
     return parser
 
 
@@ -283,6 +302,35 @@ def main(argv: list[str] | None = None) -> int:
             result = compare_phase7_trend(blind_output_dir=args.blind_output_dir, ulisten_result_dir=args.ulisten_result_dir, output_dir=args.output_dir)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.0 trend comparison failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "prepare-phase71-canonical":
+        try:
+            result = prepare_phase71_canonical(input_dir=args.input_dir, manifest_path=args.manifest, media_root=args.media_root, mode=args.mode, source_input_dir=args.source_input_dir)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1 canonical preparation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "extract-phase71":
+        try:
+            config: dict[str, object] = {}
+            if args.judge_config:
+                import yaml
+                loaded = yaml.safe_load(args.judge_config.read_text(encoding="utf-8")) or {}
+                config = dict(loaded.get("phase_7_1", loaded))
+            result = run_phase71_extraction(media_root=args.media_root, judge_backend=args.judge_backend, judge_config=config, cache_root=args.judge_cache_root, judge_max_claims=args.judge_max_claims)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1 extraction failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "evaluate-phase71":
+        try:
+            result = evaluate_phase71(golden_path=args.golden, claims_path=args.claims, evidence_path=args.evidence, output_path=args.output)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1 evaluation failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

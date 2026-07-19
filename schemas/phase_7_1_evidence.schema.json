@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_evidence.schema.json",
+  "type": "object",
+  "required": ["schema_version", "evidence_id", "media_id", "source_record_ids", "source_text", "normalized_text", "speaker", "speaker_status", "source_time_start", "source_time_end", "source_url", "provider", "source_ranges", "source_hashes", "entity_risks", "numeric_risks", "negation_risks", "exact_quote_allowed", "verification_status"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_evidence_v1"},
+    "evidence_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "source_record_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_text": {"type": "string", "minLength": 1},
+    "normalized_text": {"type": "string", "minLength": 1},
+    "speaker": {"type": ["string", "null"]},
+    "speaker_status": {"type": "string"},
+    "source_time_start": {"type": "number"},
+    "source_time_end": {"type": "number"},
+    "source_url": {"type": "string"},
+    "provider": {"type": "string"},
+    "source_ranges": {"type": "array", "items": {"type": "object"}, "minItems": 1},
+    "source_hashes": {"type": "object", "additionalProperties": {"type": "string"}},
+    "entity_risks": {"type": "array", "items": {"type": "string"}},
+    "numeric_risks": {"type": "array", "items": {"type": "string"}},
+    "negation_risks": {"type": "array", "items": {"type": "string"}},
+    "exact_quote_allowed": {"type": "boolean"},
+    "verification_status": {"enum": ["unreviewed", "needs_review", "verified", "rejected"]},
+    "from_meaningful_unmerged": {"type": "boolean"}
+  },
+  "additionalProperties": true
+}

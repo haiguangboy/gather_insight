@@ -1,0 +1,10 @@
+{
+  "media_id": "yt_phase71test",
+  "youtube_url": "https://www.youtube.com/watch?v=phase71test",
+  "title": "Phase 7.1 public fixture",
+  "youtube_metadata": {
+    "chapters": [
+      {"start_seconds": 0, "end_seconds": 60, "title": "Technical section", "speaker": "Fixture Speaker"}
+    ]
+  }
+}

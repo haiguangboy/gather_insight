@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_verification_queue.schema.json",
+  "type": "object",
+  "required": ["schema_version", "verification_id", "media_id", "target_type", "target_id", "priority", "reasons", "status"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_verification_queue_v1"},
+    "verification_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "target_type": {"enum": ["claim", "evidence", "relation"]},
+    "target_id": {"type": "string"},
+    "priority": {"enum": ["high", "medium", "low"]},
+    "reasons": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "status": {"enum": ["open", "in_review", "verified", "rejected"]},
+    "reviewer_note": {"type": "string"}
+  },
+  "additionalProperties": true
+}

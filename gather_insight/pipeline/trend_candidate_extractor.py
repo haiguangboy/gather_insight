@@ -16,6 +16,7 @@ _NUMBER = re.compile(r"\b\d+(?:\.\d+)?(?:%|x|×)?\b", re.IGNORECASE)
 _NEGATION = re.compile(r"\b(?:not|no|never|cannot|can't|won't|without|fails?|failed|impossible)\b", re.IGNORECASE)
 _MODEL = re.compile(r"\b(?:GPT[- ]?\w+|Llama[- ]?\w+|Claude[- ]?\w+|Gemini[- ]?\w+|DeepSeek[- ]?\w+|BGE[- ]?M3|Diffusion[- ]?MPC|LeWorldModeling|PAC[- ]?Bayes)\b", re.IGNORECASE)
 _ENTITY = re.compile(r"\b(?:[A-Z][A-Za-z0-9.-]+(?:\s+[A-Z][A-Za-z0-9().-]+){0,3})\b")
+_ENTITY_STOP = {"i", "the", "this", "that", "all", "and", "but", "so", "we", "you", "it", "um", "uh", "okay", "right", "cool", "today", "one", "two", "first", "then", "there", "here", "what", "when", "if", "as", "now", "basically", "obviously"}
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 _NON_CONSENSUS = re.compile(
     r"\b(?:surprising|counterintuitive|contrary|instead|unlike|does not|do not|isn't|aren't|fails?|bottleneck|limited by|only if|even when|rather than|not necessary|not enough)\b",
@@ -37,12 +38,12 @@ _TOPICS: dict[str, dict[str, Any]] = {
     },
     "world_models": {
         "label": "World models and latent-space planning",
-        "patterns": [r"world model", r"latent space", r"latent planning", r"dynamics model", r"rollout"],
+        "patterns": [r"world\s*model", r"latent space", r"latent planning", r"dynamics model", r"rollout"],
         "implication": "World-model research is testing whether useful planning can move into compact learned latent spaces.",
     },
     "data_scaling": {
         "label": "Data scaling and compute per example",
-        "patterns": [r"scaling", r"data point", r"per data", r"dataset", r"more data", r"compute per"],
+        "patterns": [r"scaling", r"data point", r"per data", r"dataset", r"more data", r"compute per", r"data.{0,200}grow", r"data constrained", r"downstream benchmark", r"\bIID\b", r"validation loss"],
         "implication": "Scaling strategy may shift when marginal data and marginal compute have different availability constraints.",
     },
     "infinite_compute_pretraining": {
@@ -57,7 +58,7 @@ _TOPICS: dict[str, dict[str, Any]] = {
     },
     "model_efficiency": {
         "label": "Model and training efficiency",
-        "patterns": [r"efficien", r"throughput", r"latency", r"memory", r"FLOP", r"compute", r"speedup"],
+        "patterns": [r"efficien", r"throughput", r"latency", r"memory", r"FLOP", r"compute", r"speedup", r"ensemble", r"distill", r"parameter model"],
         "implication": "Efficiency improvements increasingly depend on system-level constraints, not only model quality.",
     },
     "failure_modes": {
@@ -72,6 +73,20 @@ def _tokens(pattern: re.Pattern[str], text: str) -> set[str]:
     return {match.group(0).lower() for match in pattern.finditer(text)}
 
 
+def _entity_tokens(text: str) -> set[str]:
+    values: set[str] = set()
+    for match in _ENTITY.finditer(text):
+        raw = match.group(0).strip()
+        lowered = raw.lower()
+        if lowered in _ENTITY_STOP:
+            continue
+        parts = raw.split()
+        distinctive = len(parts) >= 2 or any(character.isupper() for character in raw[1:]) or any(character.isdigit() for character in raw) or any(character in raw for character in "-.")
+        if distinctive:
+            values.add(lowered)
+    return values
+
+
 def detect_text_conflicts(left: str, right: str) -> list[dict[str, Any]]:
     """Detect high-risk disagreements without deciding which source is right."""
     conflicts: list[dict[str, Any]] = []
@@ -79,10 +94,7 @@ def detect_text_conflicts(left: str, right: str) -> list[dict[str, Any]]:
         left_values, right_values = _tokens(pattern, left), _tokens(pattern, right)
         if (left_values or right_values) and left_values != right_values:
             conflicts.append({"type": kind, "source_a": sorted(left_values), "source_b": sorted(right_values)})
-    left_entities, right_entities = _tokens(_ENTITY, left), _tokens(_ENTITY, right)
-    ignored = {"i", "the", "this", "that", "all", "and", "but", "so", "we", "you", "it"}
-    left_entities -= ignored
-    right_entities -= ignored
+    left_entities, right_entities = _entity_tokens(left), _entity_tokens(right)
     if left_entities and right_entities and left_entities != right_entities:
         conflicts.append({"type": "entity_conflict", "source_a": sorted(left_entities), "source_b": sorted(right_entities)})
     return conflicts
@@ -91,13 +103,22 @@ def detect_text_conflicts(left: str, right: str) -> list[dict[str, Any]]:
 def risk_summary(text: str) -> dict[str, list[str]]:
     return {
         "numeric_risks": sorted(_tokens(_NUMBER, text)),
-        "entity_risks": sorted((_tokens(_MODEL, text) | _tokens(_ENTITY, text)) - {"i", "the", "this", "that"}),
+        "entity_risks": sorted(_tokens(_MODEL, text) | _entity_tokens(text)),
         "negation_risks": sorted(_tokens(_NEGATION, text)),
     }
 
 
 def _topic_matches(text: str) -> list[str]:
     return [topic for topic, value in _TOPICS.items() if any(re.search(pattern, text, re.IGNORECASE) for pattern in value["patterns"])]
+
+
+def topic_matches(text: str) -> list[str]:
+    """Return stable Phase 7 topic keys for evidence text."""
+    return _topic_matches(text)
+
+
+def topic_implication(topic: str) -> str:
+    return str((_TOPICS.get(topic) or {}).get("implication") or "")
 
 
 def _best_claim(text: str) -> str:

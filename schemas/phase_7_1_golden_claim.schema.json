@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_golden_claim.schema.json",
+  "type": "object",
+  "required": ["gold_id", "gold_claim", "claim_type", "value_types", "supporting_time_range", "supporting_text", "expected_theme", "why_valuable", "speaker_requirement", "verification_requirement"],
+  "properties": {
+    "gold_id": {"type": "string"},
+    "gold_claim": {"type": "string"},
+    "claim_type": {"type": "string"},
+    "value_types": {"type": "array", "items": {"type": "string"}},
+    "supporting_time_range": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "minItems": 2, "maxItems": 2},
+    "supporting_text": {"type": "string"},
+    "expected_theme": {"type": "string"},
+    "why_valuable": {"type": "string"},
+    "speaker_requirement": {"type": "string"},
+    "verification_requirement": {"type": "string"},
+    "expected_risks": {"type": "array", "items": {"enum": ["entity", "numeric", "negation"]}},
+    "category": {"type": "string"}
+  },
+  "additionalProperties": true
+}

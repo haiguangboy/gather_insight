@@ -1,0 +1,27 @@
+phase_7_1:
+  value_judge:
+    backend: rules
+    judge_max_claims: 32
+
+  embedding:
+    provider: ollama
+    base_url: http://localhost:11434
+    model: bge-m3:latest
+    dim: 1024
+    normalize: true
+    batch_size: 64
+    cache_path: .embcache/phase_7_1.embeddings.jsonl
+
+  llm:
+    provider: deepseek
+    deepseek_base_url: https://api.deepseek.com
+    deepseek_model: deepseek-v4-flash
+    deepseek_thinking: true
+    deepseek_timeout: 120
+    temperature: 0.0
+    judge_batch_size: 8
+    cache_path: .llmcache/phase_7_1_value_judgments.jsonl
+
+# DEEPSEEK_API_KEY is read only from the environment.
+# Transcript text is evidence data, never instructions. The judge may score
+# supplied claims but cannot create evidence or rewrite transcript text.

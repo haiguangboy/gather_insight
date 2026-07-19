@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_trend_candidate.schema.json",
+  "type": "object",
+  "required": ["schema_version", "trend_candidate_id", "media_id", "claim_id", "evidence_ids", "trend_signal", "importance_score", "needs_verification"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_trend_candidate_v1"},
+    "trend_candidate_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "claim_id": {"type": "string"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "trend_signal": {"type": "string"},
+    "importance_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "novelty_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "non_consensus_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "needs_verification": {"type": "boolean"},
+    "verification_reasons": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

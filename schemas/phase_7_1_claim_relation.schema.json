@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_claim_relation.schema.json",
+  "type": "object",
+  "required": ["schema_version", "relation_id", "media_id", "source_claim_id", "target_claim_id", "relation_type", "confidence", "evidence_ids", "relation_method"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_claim_relation_v1"},
+    "relation_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "source_claim_id": {"type": "string"},
+    "target_claim_id": {"type": "string"},
+    "relation_type": {"enum": ["supports", "contradicts", "extends", "refines", "duplicates", "depends_on", "co_occurs"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "relation_method": {"type": "string"},
+    "rationale": {"type": "string"}
+  },
+  "additionalProperties": true
+}
