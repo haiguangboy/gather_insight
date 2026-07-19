@@ -1,0 +1,46 @@
+semantic_alignment:
+  mode: local_semantic
+  time_padding_seconds: 30
+  max_units_per_match: 6
+  candidate_top_k: 12
+  beam_width: 24
+  max_secondary_skip_units: 8
+  accept_threshold: 0.65
+  auto_threshold: 0.85
+  ambiguity_margin_threshold: 0.08
+  max_judge_calls: 24
+  max_unit_chars: 260
+
+  weights:
+    semantic_similarity: 0.45
+    lexical_anchor_score: 0.20
+    entity_consistency_score: 0.15
+    time_prior_score: 0.10
+    sequence_context_score: 0.10
+
+  embedding:
+    provider: ollama
+    base_url: http://localhost:11434
+    model: bge-m3:latest
+    dim: 1024
+    normalize: true
+    query_prefix: ""
+    passage_prefix: ""
+    batch_size: 64
+    cache_path: .embcache/semantic_alignment.embeddings.jsonl
+
+  ambiguity_judge:
+    enabled: true
+    provider: deepseek
+    deepseek_base_url: https://api.deepseek.com
+    deepseek_model: deepseek-v4-flash
+    deepseek_thinking: true
+    temperature: 0.0
+    deepseek_timeout: 120
+    escalation_model: deepseek-v4-pro
+    candidate_margin_threshold: 0.08
+    max_candidates: 5
+    cache_path: .llmcache/semantic_boundary_judgments.jsonl
+
+# DEEPSEEK_API_KEY is read only from the environment. Never put a real key here.
+# Local Qwen judge is intentionally not enabled in Phase 6.8.

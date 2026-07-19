@@ -9,6 +9,8 @@ from gather_insight.adapters.official_transcript_parser import OfficialTranscrip
 from gather_insight.adapters.ulisten_parser import UlistenSegment, parse_ulisten_file
 from gather_insight.adapters.usetranscribe_parser import UseTranscribeSegment, parse_usetranscribe_file
 from gather_insight.pipeline.ids import media_id_for_url
+from gather_insight.pipeline.semantic_alignment import align_semantically, allocation_record
+from gather_insight.pipeline.semantic_scorer import SemanticBackendUnavailable
 from gather_insight.pipeline.source_resolver import TranscriptCombinationResolution, resolve_transcript_combination
 from gather_insight.pipeline.transcript_fuser import FusedSegment, fuse_transcripts
 from gather_insight.run_logging import RunLogger
@@ -143,7 +145,18 @@ def _resolution_metadata(resolution: TranscriptCombinationResolution, *, media_i
     }
 
 
-def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path("data/media"), fixture_flags: dict[str, bool] | None = None, logger: RunLogger | None = None) -> dict[str, Any]:
+_SEMANTIC_RUNTIME_KEYS = {
+    "embedding_api_call_count", "embedding_cache_hit_count", "embedding_text_count", "embedding_seconds",
+    "judge_call_count", "judge_cache_hit_count", "judge_abstain_count", "judge_escalation_count",
+    "judge_api_seconds", "judge_prompt_tokens", "judge_completion_tokens",
+}
+
+
+def _stable_semantic_mapping(value: dict[str, Any]) -> dict[str, Any]:
+    return {key: item for key, item in value.items() if key not in _SEMANTIC_RUNTIME_KEYS}
+
+
+def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path("data/media"), fixture_flags: dict[str, bool] | None = None, semantic_config: dict[str, Any] | None = None, semantic_cache_root: Path | None = None, logger: RunLogger | None = None) -> dict[str, Any]:
     manifest = _manifest(input_dir)
     youtube_url = str(manifest.get("youtube_url") or "")
     canonical_id = str(manifest.get("canonical_youtube_video_id") or "")
@@ -161,6 +174,9 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
     logger = logger or RunLogger("fuse-general", global_log=output_root / "_logs" / "gather_insight.jsonl")
     logger.bind_media(media_id, media_dir)
     fixture_flags = fixture_flags or (manifest.get("fixture_flags") or {})
+    semantic_config = dict(semantic_config or manifest.get("semantic_alignment") or {"mode": "lexical_only"})
+    semantic_config.setdefault("mode", "lexical_only")
+    semantic_cache_root = semantic_cache_root or Path(".")
     logger.event("INFO", "general_fusion.started", "general transcript workflow started", input_dir=input_dir, output_dir=output_dir)
     report_path = output_dir / "processing_report.json"
     input_hashes_before: dict[str, str] = {}
@@ -195,16 +211,50 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
             parsed_official = parse_official_transcript_file(path=resolution.sources["official_transcript"].path, media_id=media_id, youtube_url=youtube_url)
 
         fusion_diagnostics = None
+        semantic_diagnostics = None
+        semantic_metadata = None
+        semantic_report_diagnostics = None
+        semantic_report_metadata = None
+        alignment_trace: list[dict[str, object]] = []
+        unallocated_units: list[dict[str, object]] = []
         if resolution.fusion_mode == "dual_source":
-            fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=parsed_use.segments)
             source_fixture = resolution.sources["usetranscribe"].is_fixture
-            records = [_from_fused(segment, mode="dual_source", text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", source_is_fixture=source_fixture) for segment in fused.segments]
-            fusion_diagnostics = fused.diagnostics.as_dict() if fused.diagnostics else None
+            active_config = dict(semantic_config)
+            try:
+                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+            except SemanticBackendUnavailable as exc:
+                logger.event("ERROR", "semantic_alignment.degraded", "semantic backend unavailable; using explicit lexical fallback", error=str(exc), requested_mode=active_config.get("mode"))
+                active_config = {**active_config, "mode": "lexical_only"}
+                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_use.segments, config_value=active_config, cache_root=semantic_cache_root)
+                aligned.diagnostics["semantic_alignment_degraded"] = True
+                aligned.diagnostics["semantic_backend_error"] = str(exc)
+            records = [allocation_record(allocation, aligned.units, text_source="usetranscribe_format_fixture" if source_fixture else "usetranscribe_manual_export", official=False, source_is_fixture=source_fixture) for allocation in aligned.allocations]
+            semantic_report_diagnostics = dict(aligned.diagnostics)
+            semantic_diagnostics = _stable_semantic_mapping(semantic_report_diagnostics)
+            fusion_diagnostics = {key: semantic_diagnostics[key] for key in ("secondary_segment_reuse_count", "cross_speaker_boundary_count", "adjacent_text_duplication_rate", "unconsumed_secondary_segment_count")}
+            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": aligned.judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
+            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(aligned.judge_metadata)}
+            alignment_trace = aligned.trace
+            unallocated_units = [unit.as_dict() for unit in aligned.unallocated_units]
         elif resolution.fusion_mode == "official_dual":
-            fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=parsed_official.segments)
             source_fixture = resolution.sources["official_transcript"].is_fixture
-            records = [_from_fused(segment, mode="official_dual", text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for segment in fused.segments]
-            fusion_diagnostics = fused.diagnostics.as_dict() if fused.diagnostics else None
+            active_config = dict(semantic_config)
+            try:
+                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+            except SemanticBackendUnavailable as exc:
+                logger.event("ERROR", "semantic_alignment.degraded", "semantic backend unavailable; using explicit lexical fallback", error=str(exc), requested_mode=active_config.get("mode"))
+                active_config = {**active_config, "mode": "lexical_only"}
+                aligned = align_semantically(structure_segments=parsed_ulisten.segments, secondary_segments=parsed_official.segments, config_value=active_config, cache_root=semantic_cache_root)
+                aligned.diagnostics["semantic_alignment_degraded"] = True
+                aligned.diagnostics["semantic_backend_error"] = str(exc)
+            records = [allocation_record(allocation, aligned.units, text_source="official_transcript_format_fixture" if source_fixture else "official_transcript", official=True, source_is_fixture=source_fixture) for allocation in aligned.allocations]
+            semantic_report_diagnostics = dict(aligned.diagnostics)
+            semantic_diagnostics = _stable_semantic_mapping(semantic_report_diagnostics)
+            fusion_diagnostics = {key: semantic_diagnostics[key] for key in ("secondary_segment_reuse_count", "cross_speaker_boundary_count", "adjacent_text_duplication_rate", "unconsumed_secondary_segment_count")}
+            semantic_report_metadata = {"config": aligned.config.as_dict(), "scorer": aligned.scorer_metadata, "judge": aligned.judge_metadata, "elapsed_seconds": aligned.elapsed_seconds}
+            semantic_metadata = {"config": aligned.config.as_dict(), "scorer": _stable_semantic_mapping(aligned.scorer_metadata), "judge": _stable_semantic_mapping(aligned.judge_metadata)}
+            alignment_trace = aligned.trace
+            unallocated_units = [unit.as_dict() for unit in aligned.unallocated_units]
         elif resolution.fusion_mode == "structure_degraded":
             fused = fuse_transcripts(structure_segments=parsed_ulisten.segments, text_segments=None)
             source_fixture = resolution.sources["ulisten"].is_fixture
@@ -225,7 +275,9 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
         metadata["segment_count"] = len(records)
         metadata["speaker_review_count"] = sum(bool(record["speaker_needs_review"]) for record in records)
         metadata["fusion_diagnostics"] = fusion_diagnostics
-        outputs = write_general_outputs(output_dir=output_dir, records=records, metadata=metadata, fused_schema_path=Path(__file__).parents[2] / "schemas" / "transcript_fused.schema.json")
+        metadata["semantic_alignment_diagnostics"] = semantic_diagnostics
+        metadata["semantic_alignment"] = semantic_metadata
+        outputs = write_general_outputs(output_dir=output_dir, records=records, metadata=metadata, fused_schema_path=Path(__file__).parents[2] / "schemas" / "transcript_fused.schema.json", alignment_trace=alignment_trace, unallocated_units=unallocated_units)
         input_hashes_after = {name: _sha256(input_dir / name) for name in input_hashes_before}
         if input_hashes_before != input_hashes_after:
             raise GeneralTranscriptWorkflowError("raw input hash changed during general fusion")
@@ -235,6 +287,8 @@ def run_general_transcript_workflow(*, input_dir: Path, output_root: Path = Path
             "speaker_review_count": sum(bool(record["speaker_needs_review"]) for record in records),
             "alignment_confidence_count": sum(record["alignment_confidence"] is not None for record in records),
             "fusion_diagnostics": fusion_diagnostics,
+            "semantic_alignment_diagnostics": semantic_report_diagnostics,
+            "semantic_alignment": semantic_report_metadata,
             "input_hashes_before": input_hashes_before, "input_hashes_after": input_hashes_after,
             "outputs": outputs, "logs": logger.log_paths,
         }

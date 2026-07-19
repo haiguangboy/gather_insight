@@ -53,3 +53,9 @@ Phase 6.6 keeps the YC workflow unchanged and adds a separate general source-com
 Status: accepted, 2026-07-19.
 
 General transcript records carry `source_is_fixture`, and fixture-specific `text_source` values remain distinct from production sources. This keeps readable fixtures useful for parser and workflow tests without allowing downstream evidence or publication code to treat them as production provenance. Dual-source diagnostics remain aggregate output, while only the cross-speaker secondary-segment reuse condition changes record review state.
+
+## ADR-010 — Dual-source text uses monotonic semantic-unit allocation
+
+Status: accepted, 2026-07-19.
+
+Phase 6.8 replaces whole-coarse-segment copying in the general `dual_source` and `official_dual` paths with semantic units and a forward-only beam path. Ollama BGE-M3 is the default real semantic scorer; DeepSeek is a bounded optional candidate judge and cannot generate transcript text. Character reuse, backward movement, and cross-speaker sharing are hard failures. Runtime provider/cache statistics belong in processing reports so stable fused outputs remain idempotent.

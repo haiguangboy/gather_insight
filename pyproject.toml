@@ -14,10 +14,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+semantic = ["wordninja>=2.0"]
 
 [project.scripts]
 gather-insight = "gather_insight.cli:main"
 
 [tool.setuptools]
 packages = ["gather_insight", "gather_insight.pipeline", "gather_insight.adapters"]
-

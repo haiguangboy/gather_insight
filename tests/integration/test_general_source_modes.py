@@ -191,6 +191,53 @@ class GeneralSourceModeTests(unittest.TestCase):
                     "unconsumed_secondary_segment_count",
                 })
 
+    def test_mock_semantic_dual_outputs_trace_hard_constraints_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            (input_dir / "manifest.json").write_text(manifest(), encoding="utf-8")
+            (input_dir / "source_ulisten_raw.md").write_text("0:00 - 0:20\n#### Intro\n\nAlice0:00\nAlpha begins.\nBob0:10\nBeta ends.\n", encoding="utf-8")
+            (input_dir / "source_usetranscribe_raw.md").write_text("[0:00 - 0:20] Alpha begins. Beta ends.\n", encoding="utf-8")
+            source_hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in input_dir.glob("source_*_raw.md")}
+            semantic = {"mode": "mock_semantic", "accept_threshold": 0.5, "ambiguity_margin_threshold": 0.02}
+
+            first = run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", semantic_config=semantic, logger=RunLogger("test-general", root / "global.jsonl", "mock_semantic_1"))
+            output = root / "data" / MEDIA_ID / "general"
+            stable = ["transcript_fused.jsonl", "transcript_fused.md", "source_resolution_report.md", "review_queue.md", "speaker_review_queue.md", "fusion_manifest.json", "alignment_trace.jsonl", "unallocated_secondary.jsonl"]
+            first_bytes = {name: (output / name).read_bytes() for name in stable}
+            second = run_general_transcript_workflow(input_dir=input_dir, output_root=root / "data", semantic_config=semantic, logger=RunLogger("test-general", root / "global-2.jsonl", "mock_semantic_2"))
+            second_bytes = {name: (output / name).read_bytes() for name in stable}
+
+            diagnostics = first["semantic_alignment_diagnostics"]
+            self.assertEqual(diagnostics["secondary_character_reuse_rate"], 0)
+            self.assertEqual(diagnostics["monotonic_violation_count"], 0)
+            self.assertEqual(diagnostics["cross_speaker_shared_character_count"], 0)
+            self.assertGreater((output / "alignment_trace.jsonl").stat().st_size, 0)
+            self.assertEqual(first_bytes, second_bytes)
+            self.assertEqual(source_hashes, {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in input_dir.glob("source_*_raw.md")})
+            self.assertEqual(first["fusion_mode"], second["fusion_mode"])
+
+    def test_missing_ollama_model_is_explicitly_degraded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_dir = root / "input"
+            input_dir.mkdir()
+            (input_dir / "manifest.json").write_text(manifest(), encoding="utf-8")
+            (input_dir / "source_ulisten_raw.md").write_text(ulisten(), encoding="utf-8")
+            (input_dir / "source_usetranscribe_raw.md").write_text("[0:00 - 0:10] Hello from structure.\n", encoding="utf-8")
+
+            report = run_general_transcript_workflow(
+                input_dir=input_dir,
+                output_root=root / "data",
+                semantic_config={"mode": "local_semantic", "embedding": {"base_url": "http://127.0.0.1:9", "model": "missing-model", "dim": 1024}},
+                logger=RunLogger("test-general", root / "global.jsonl", "semantic_degraded"),
+            )
+
+            diagnostics = report["semantic_alignment_diagnostics"]
+            self.assertTrue(diagnostics["semantic_alignment_degraded"])
+            self.assertIn("semantic_backend_error", diagnostics)
+
     def test_manifest_video_id_mismatch_fails_loudly(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

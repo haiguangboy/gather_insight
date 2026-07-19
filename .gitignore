@@ -1,4 +1,8 @@
 .env
+.venv/
+*.egg-info/
+.embcache/
+.llmcache/
 *.mp3
 *.m4a
 *.wav
@@ -14,3 +18,4 @@ data/media/**/logs/*.jsonl
 data/media/_logs/*.jsonl
 data/media/*/general/
 input/
+config/semantic_alignment.yaml

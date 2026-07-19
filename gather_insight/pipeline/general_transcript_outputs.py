@@ -96,6 +96,8 @@ def _report(records: list[dict[str, object]], metadata: dict[str, Any]) -> str:
         f"- speaker_review_count: `{sum(bool(record.get('speaker_needs_review')) for record in records)}`",
         f"- numeric_alignment_confidence_count: `{len(confidences)}`",
         f"- fusion_diagnostics: `{json.dumps(metadata.get('fusion_diagnostics'), ensure_ascii=False)}`",
+        f"- semantic_alignment_diagnostics: `{json.dumps(metadata.get('semantic_alignment_diagnostics'), ensure_ascii=False)}`",
+        f"- semantic_alignment: `{json.dumps(metadata.get('semantic_alignment'), ensure_ascii=False)}`",
         f"- sources: `{json.dumps(metadata.get('sources', {}), ensure_ascii=False)}`",
         "",
         "## Limitations",
@@ -107,7 +109,7 @@ def _report(records: list[dict[str, object]], metadata: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_general_outputs(*, output_dir: Path, records: list[dict[str, object]], metadata: dict[str, Any], fused_schema_path: Path) -> dict[str, str]:
+def write_general_outputs(*, output_dir: Path, records: list[dict[str, object]], metadata: dict[str, Any], fused_schema_path: Path, alignment_trace: list[dict[str, object]] | None = None, unallocated_units: list[dict[str, object]] | None = None) -> dict[str, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     validate_records(records, fused_schema_path, "general transcript output")
     paths = {
@@ -117,6 +119,8 @@ def write_general_outputs(*, output_dir: Path, records: list[dict[str, object]],
         "review_queue": output_dir / "review_queue.md",
         "speaker_review_queue": output_dir / "speaker_review_queue.md",
         "fusion_manifest": output_dir / "fusion_manifest.json",
+        "alignment_trace": output_dir / "alignment_trace.jsonl",
+        "unallocated_secondary": output_dir / "unallocated_secondary.jsonl",
     }
     _write_jsonl(paths["transcript_fused_jsonl"], records)
     paths["transcript_fused_markdown"].write_text(_markdown(records, metadata), encoding="utf-8")
@@ -124,4 +128,6 @@ def write_general_outputs(*, output_dir: Path, records: list[dict[str, object]],
     paths["review_queue"].write_text(_review_queue(records), encoding="utf-8")
     paths["speaker_review_queue"].write_text(_speaker_review_queue(records), encoding="utf-8")
     paths["fusion_manifest"].write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _write_jsonl(paths["alignment_trace"], alignment_trace or [])
+    _write_jsonl(paths["unallocated_secondary"], unallocated_units or [])
     return {key: str(path) for key, path in paths.items()}

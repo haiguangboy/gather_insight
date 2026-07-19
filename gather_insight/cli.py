@@ -76,7 +76,26 @@ def build_parser() -> argparse.ArgumentParser:
     general.add_argument("--input-dir", required=True, type=Path)
     general.add_argument("--output-root", type=Path, default=Path("data/media"))
     general.add_argument("--log-file", type=Path, default=Path("logs/gather_insight.jsonl"))
+    general.add_argument("--semantic-mode", choices=["lexical_only", "local_semantic", "hybrid_semantic", "mock_semantic"])
+    general.add_argument("--semantic-config", type=Path, help="YAML semantic_alignment configuration")
+    general.add_argument("--semantic-cache-root", type=Path, default=Path("."))
     return parser
+
+
+def _semantic_config(args: argparse.Namespace) -> dict[str, object]:
+    value: dict[str, object] = {}
+    if args.semantic_config:
+        try:
+            import yaml
+            loaded = yaml.safe_load(args.semantic_config.read_text(encoding="utf-8")) or {}
+            value = dict(loaded.get("semantic_alignment", loaded))
+        except (OSError, ValueError, TypeError) as exc:
+            raise GeneralTranscriptWorkflowError(f"cannot load semantic config: {exc}") from exc
+    if args.semantic_mode:
+        value["mode"] = args.semantic_mode
+    else:
+        value.setdefault("mode", "lexical_only")
+    return value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -153,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "fuse-general":
         logger = RunLogger("fuse-general", global_log=args.log_file)
         try:
-            result = run_general_transcript_workflow(input_dir=args.input_dir, output_root=args.output_root, logger=logger)
+            result = run_general_transcript_workflow(input_dir=args.input_dir, output_root=args.output_root, semantic_config=_semantic_config(args), semantic_cache_root=args.semantic_cache_root, logger=logger)
         except GeneralTranscriptWorkflowError as exc:
             print(f"general fusion failed: {exc}", file=sys.stderr)
             return 2
