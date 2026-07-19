@@ -72,6 +72,8 @@ See `docs/PHASE_7_0_NO_ULISTEN_TREND_MODE.md`. Complete third-party transcripts 
 
 Phase 7.1 builds versioned canonical claim/evidence artifacts without changing transcript alignment. Use `prepare-phase71-canonical`, then `extract-phase71`, and evaluate a private golden with `evaluate-phase71`. See `docs/PHASE_7_1_DESIGN.md` and `docs/PHASE_7_1_REAL_YC_REPORT.md`.
 
+Phase 7.1.1 adds the human quality gate over the 89 trend candidates. Generate the private review with `generate-phase711-review`; after completing the downloaded JSONL, materialize accepted/rejected/merged claims with `finalize-phase711-review`. See `docs/PHASE_7_1_1_HUMAN_GATE.md`.
+
 ## Manual transcript format
 
 ```markdown

@@ -14,6 +14,7 @@ from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError
 from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
 from .pipeline.no_ulisten_trend_workflow import compare_phase7_trend, run_no_ulisten_trend
 from .pipeline.phase71_evaluator import evaluate_phase71
+from .pipeline.phase711_human_gate import finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
@@ -135,6 +136,21 @@ def build_parser() -> argparse.ArgumentParser:
     phase71_eval.add_argument("--claims", required=True, type=Path)
     phase71_eval.add_argument("--evidence", required=True, type=Path)
     phase71_eval.add_argument("--output", required=True, type=Path)
+    gate_review = sub.add_parser("generate-phase711-review", help="Generate the Phase 7.1.1 blind trend-candidate human gate")
+    gate_review.add_argument("--media-root", required=True, type=Path)
+    gate_review.add_argument("--output-dir", type=Path)
+    gate_finalize = sub.add_parser("finalize-phase711-review", help="Materialize accepted/rejected claims from human Phase 7.1.1 decisions")
+    gate_finalize.add_argument("--media-root", required=True, type=Path)
+    gate_finalize.add_argument("--decisions", required=True, type=Path)
+    gate_finalize.add_argument("--output-dir", type=Path)
+    golden_review = sub.add_parser("generate-phase711-golden-review", help="Generate a blind private golden review and extension package")
+    golden_review.add_argument("--draft", required=True, type=Path)
+    golden_review.add_argument("--output-dir", required=True, type=Path)
+    golden_freeze = sub.add_parser("freeze-phase711-golden", help="Validate and freeze a completed private Phase 7.1.1 golden")
+    golden_freeze.add_argument("--reviewed", required=True, type=Path)
+    golden_freeze.add_argument("--output", required=True, type=Path)
+    golden_freeze.add_argument("--reviewer", required=True)
+    golden_freeze.add_argument("--golden-version", required=True)
     return parser
 
 
@@ -331,6 +347,38 @@ def main(argv: list[str] | None = None) -> int:
             result = evaluate_phase71(golden_path=args.golden, claims_path=args.claims, evidence_path=args.evidence, output_path=args.output)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.1 evaluation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "generate-phase711-review":
+        try:
+            result = generate_phase711_review(media_root=args.media_root, output_dir=args.output_dir)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1.1 review generation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "finalize-phase711-review":
+        try:
+            result = finalize_phase711_review(media_root=args.media_root, decisions_path=args.decisions, output_dir=args.output_dir)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1.1 review finalization failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "generate-phase711-golden-review":
+        try:
+            result = generate_phase711_golden_review(draft_path=args.draft, output_dir=args.output_dir)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1.1 golden review generation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "freeze-phase711-golden":
+        try:
+            result = freeze_phase711_golden(reviewed_path=args.reviewed, output_path=args.output, reviewer=args.reviewer, golden_version=args.golden_version)
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.1.1 golden freeze failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

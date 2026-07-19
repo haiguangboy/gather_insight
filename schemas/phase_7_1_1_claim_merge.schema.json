@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_1_claim_merge.schema.json",
+  "type": "object",
+  "required": ["schema_version", "merge_id", "media_id", "parent_claim_id", "canonical_claim_id", "evidence_ids", "reviewer", "review_version", "reviewed_at"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_1_claim_merge_v1"},
+    "merge_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "parent_claim_id": {"type": "string"},
+    "canonical_claim_id": {"type": "string"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "reviewer": {"type": "string"},
+    "review_version": {"type": "string"},
+    "reviewed_at": {"type": "string"},
+    "reviewer_note": {"type": "string"}
+  },
+  "additionalProperties": true
+}

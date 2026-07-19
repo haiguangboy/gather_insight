@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_1_review_decision.schema.json",
+  "type": "object",
+  "required": ["schema_version", "review_id", "trend_candidate_id", "claim_id", "media_id", "decision", "entailment_label", "verification_status", "reviewer", "review_version", "reviewed_at"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_1_review_decision_v1"},
+    "review_id": {"type": "string"},
+    "trend_candidate_id": {"type": "string"},
+    "claim_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "decision": {"enum": ["accept", "reject_low_value", "reject_incorrect", "reject_unsupported", "reject_duplicate", "merge_into", "needs_boundary_expansion", "needs_context", "needs_entity_verification", "needs_numeric_verification", "needs_negation_verification", "needs_speaker_verification"]},
+    "canonical_claim": {"type": "string"},
+    "merge_into_claim_id": {"type": "string"},
+    "entailment_label": {"enum": ["fully_supported", "supported_with_missing_condition", "partially_supported", "overgeneralized", "contradicted", "unrelated", ""]},
+    "condition_preservation": {"enum": ["not_applicable", "preserved", "missing", "distorted"]},
+    "verification_status": {"enum": ["open", "verified", "rejected"]},
+    "verification_tags": {"type": "array", "items": {"type": "string"}},
+    "reviewer": {"type": "string"},
+    "review_version": {"type": "string"},
+    "reviewed_at": {"type": "string"},
+    "review_seconds": {"type": ["number", "null"], "minimum": 0}
+  },
+  "additionalProperties": true
+}

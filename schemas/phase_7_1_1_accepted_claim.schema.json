@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_1_accepted_claim.schema.json",
+  "type": "object",
+  "required": ["schema_version", "canonical_claim_id", "media_id", "canonical_claim", "parent_claim_ids", "evidence_ids", "source_record_ids", "source_ranges", "source_time_start", "source_time_end", "source_url", "speaker_status", "verification_status", "entailment_label", "review_metadata"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_1_accepted_claim_v1"},
+    "canonical_claim_id": {"type": "string"},
+    "media_id": {"type": "string"},
+    "canonical_claim": {"type": "string", "minLength": 1},
+    "parent_claim_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_record_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "source_ranges": {"type": "array", "minItems": 1},
+    "source_time_start": {"type": "number"},
+    "source_time_end": {"type": "number"},
+    "source_url": {"type": "string"},
+    "speaker": {"type": ["string", "null"]},
+    "speaker_status": {"type": "string"},
+    "verification_status": {"enum": ["open", "verified", "rejected"]},
+    "entailment_label": {"enum": ["fully_supported", "supported_with_missing_condition", "partially_supported", "overgeneralized", "contradicted", "unrelated"]},
+    "condition_preservation": {"enum": ["not_applicable", "preserved", "missing", "distorted"]},
+    "review_metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}

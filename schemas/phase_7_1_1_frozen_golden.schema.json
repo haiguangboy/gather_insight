@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/phase_7_1_1_frozen_golden.schema.json",
+  "type": "object",
+  "required": ["schema_version", "golden_version", "frozen_at", "reviewer", "system_output_hidden", "change_history", "gold_id", "label_kind", "gold_claim", "claim_type", "value_types", "supporting_time_range", "supporting_text", "expected_theme", "why_valuable", "speaker_requirement", "verification_requirement"],
+  "properties": {
+    "schema_version": {"const": "phase_7_1_1_frozen_golden_v1"},
+    "golden_version": {"type": "string"},
+    "frozen_at": {"type": "string"},
+    "reviewer": {"type": "string"},
+    "system_output_hidden": {"const": true},
+    "change_history": {"type": "array", "minItems": 1},
+    "gold_id": {"type": "string"},
+    "label_kind": {"enum": ["positive", "hard_negative", "background_negative"]},
+    "gold_claim": {"type": "string"},
+    "claim_type": {"type": "string"},
+    "value_types": {"type": "array", "items": {"type": "string"}},
+    "supporting_time_range": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "minItems": 2, "maxItems": 2},
+    "supporting_text": {"type": "string"},
+    "expected_theme": {"type": "string"},
+    "why_valuable": {"type": "string"},
+    "speaker_requirement": {"type": "string"},
+    "verification_requirement": {"type": "string"}
+  },
+  "additionalProperties": true
+}
