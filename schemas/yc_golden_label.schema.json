@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gather-insight.local/schemas/yc_golden_label.schema.json",
+  "type": "object",
+  "required": ["item_id", "selection_version", "reviewer", "annotation_version", "status", "ranges"],
+  "properties": {
+    "item_id": {"type": "string", "pattern": "^yc_golden_v1\\.[0-9]{3}\\.(speaker_switch|ordinary|short_or_repeated|phase_6_8_fallback)$"},
+    "selection_version": {"const": "yc_golden_selection_v1"},
+    "reviewer": {"type": "string", "minLength": 1},
+    "annotation_version": {"type": "string", "minLength": 1},
+    "status": {"enum": ["correct_alignment", "should_fallback", "source_missing", "structure_segmentation_questionable", "uncertain"]},
+    "ranges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "char_start", "char_end"],
+        "properties": {
+          "role": {"enum": ["segment_text", "left_speaker_end", "gap_event", "right_speaker_start", "short_transition_left", "short_transition_right", "short_transition_gap"]},
+          "char_start": {"type": "integer", "minimum": 0},
+          "char_end": {"type": "integer", "minimum": 0},
+          "speaker": {"type": ["string", "null"]},
+          "unit_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "notes": {"type": "string"},
+    "finalized_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

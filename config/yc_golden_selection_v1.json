@@ -1,0 +1,16 @@
+{
+  "selection_version": "yc_golden_selection_v1",
+  "media_id": "yt_wE1ZgJdt4uM",
+  "categories": {
+    "speaker_switch": [
+      [10, 11], [11, 12], [12, 13], [35, 36], [37, 38], [52, 53],
+      [53, 54], [80, 81], [82, 83], [92, 93], [94, 95], [112, 113]
+    ],
+    "ordinary": [14, 16, 19, 22, 28, 40, 42, 44, 49, 55, 59, 63, 68, 86, 89, 91, 96, 100, 104, 108],
+    "short_or_repeated": [1, 2, 4, 6, 24, 73, 76, 78, 110, 115],
+    "phase_6_8_fallback": [8, 9, 17, 18, 20, 25, 30, 39, 48, 50]
+  },
+  "boundary_context_seconds": 5,
+  "target_window_padding_seconds": 45,
+  "notes": "The IDs are fixed before any Phase 6.9+ prediction is shown. Do not change this file after labels are finalized; create a new selection version instead."
+}

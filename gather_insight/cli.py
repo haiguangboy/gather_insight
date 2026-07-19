@@ -11,6 +11,8 @@ from .pipeline.ingest import IngestError, ingest_media
 from .pipeline.source_resolver import SourceResolutionError, resolve_source
 from .pipeline.fusion_workflow import FusionWorkflowError, run_fusion_workflow
 from .pipeline.general_transcript_workflow import GeneralTranscriptWorkflowError, run_general_transcript_workflow
+from .pipeline.golden_annotation import build_yc_golden_package, convert_review_to_golden, evaluate_yc_golden
+from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
 
 
@@ -81,6 +83,28 @@ def build_parser() -> argparse.ArgumentParser:
     general.add_argument("--alignment-score-mode", choices=["raw_cosine", "margin"])
     general.add_argument("--semantic-config", type=Path, help="YAML semantic_alignment configuration")
     general.add_argument("--semantic-cache-root", type=Path, default=Path("."))
+    golden_build = sub.add_parser("build-yc-golden", help="Build an algorithm-blind private YC golden annotation package")
+    golden_build.add_argument("--input-dir", required=True, type=Path)
+    golden_build.add_argument("--package-dir", required=True, type=Path)
+    golden_build.add_argument("--selection", type=Path, default=Path("config/yc_golden_selection_v1.json"))
+    golden_evaluate = sub.add_parser("evaluate-yc-golden", help="Evaluate fused predictions against completed private YC golden labels")
+    golden_evaluate.add_argument("--package-dir", required=True, type=Path)
+    golden_evaluate.add_argument("--labels", required=True, type=Path)
+    golden_evaluate.add_argument("--predictions", required=True, type=Path)
+    golden_evaluate.add_argument("--output", type=Path)
+    golden_convert = sub.add_parser("convert-yc-review", help="Convert completed YC review JSONL into formal private golden labels")
+    golden_convert.add_argument("--package-dir", required=True, type=Path)
+    golden_convert.add_argument("--review", required=True, type=Path)
+    golden_convert.add_argument("--output", required=True, type=Path)
+    golden_convert.add_argument("--reviewer", required=True)
+    golden_convert.add_argument("--annotation-version", required=True)
+    review_views = sub.add_parser("generate-yc-review-views", help="Generate private YC fused reading and blind alignment review pages")
+    review_views.add_argument("--input-dir", required=True, type=Path)
+    review_views.add_argument("--output-dir", required=True, type=Path)
+    review_views.add_argument("--phase6-8-dir", required=True, type=Path)
+    review_views.add_argument("--vecalign-raw-dir", required=True, type=Path)
+    review_views.add_argument("--vecalign-margin-dir", required=True, type=Path)
+    review_views.add_argument("--sentalign-margin-dir", required=True, type=Path)
     return parser
 
 
@@ -181,6 +205,51 @@ def main(argv: list[str] | None = None) -> int:
             result = run_general_transcript_workflow(input_dir=args.input_dir, output_root=args.output_root, semantic_config=_semantic_config(args), semantic_cache_root=args.semantic_cache_root, logger=logger)
         except GeneralTranscriptWorkflowError as exc:
             print(f"general fusion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "build-yc-golden":
+        try:
+            result = build_yc_golden_package(input_dir=args.input_dir, package_dir=args.package_dir, selection_path=args.selection)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"golden package build failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "evaluate-yc-golden":
+        try:
+            result = evaluate_yc_golden(package_dir=args.package_dir, labels_path=args.labels, predictions_path=args.predictions, output_path=args.output)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"golden evaluation failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "convert-yc-review":
+        try:
+            result = convert_review_to_golden(
+                package_dir=args.package_dir,
+                review_path=args.review,
+                output_path=args.output,
+                reviewer=args.reviewer,
+                annotation_version=args.annotation_version,
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"review conversion failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "generate-yc-review-views":
+        try:
+            result = generate_yc_review_views(
+                input_dir=args.input_dir,
+                output_dir=args.output_dir,
+                phase_6_8_dir=args.phase6_8_dir,
+                vecalign_raw_dir=args.vecalign_raw_dir,
+                vecalign_margin_dir=args.vecalign_margin_dir,
+                sentalign_margin_dir=args.sentalign_margin_dir,
+            )
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"review view generation failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
