@@ -172,12 +172,14 @@ def build_parser() -> argparse.ArgumentParser:
     theme72c_prepare = sub.add_parser("prepare-phase72c-theme", help="Prepare the Phase 7.2C human theme gate without accepting pending records")
     theme72c_prepare.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
     theme72c_prepare.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
+    theme72c_prepare.add_argument("--review-sync-root", type=Path, help="Override ~/Sync/Obsidian/gather_insight for human-review copies")
     theme72c_gate_a = sub.add_parser("finalize-phase72c-gate-a", help="Materialize provisional Phase 7.2C assets and derive their active claim-local P0")
     theme72c_gate_a.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
     theme72c_gate_a.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
     theme72c_gate_a.add_argument("--claim-decisions", required=True, type=Path)
     theme72c_gate_a.add_argument("--relation-decisions", required=True, type=Path)
     theme72c_gate_a.add_argument("--insight-decisions", required=True, type=Path)
+    theme72c_gate_a.add_argument("--review-sync-root", type=Path, help="Override the cross-platform human-review sync root")
     theme72c_finalize = sub.add_parser("finalize-phase72c-theme", help="Freeze a provisional theme after active P0 source-fidelity review")
     theme72c_finalize.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
     theme72c_finalize.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
@@ -444,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "prepare-phase72c-theme":
         try:
-            result = prepare_phase72c_theme(theme_dir=args.theme_dir, corpus_dir=args.corpus_dir)
+            result = prepare_phase72c_theme(theme_dir=args.theme_dir, corpus_dir=args.corpus_dir, review_sync_root=args.review_sync_root)
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.2C human-gate preparation failed: {exc}", file=sys.stderr)
             return 2
@@ -458,6 +460,7 @@ def main(argv: list[str] | None = None) -> int:
                 claim_decisions_path=args.claim_decisions,
                 relation_decisions_path=args.relation_decisions,
                 insight_decisions_path=args.insight_decisions,
+                review_sync_root=args.review_sync_root,
             )
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             print(f"Phase 7.2C Gate A finalization failed: {exc}", file=sys.stderr)

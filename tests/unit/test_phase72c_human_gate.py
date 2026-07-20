@@ -77,7 +77,8 @@ class Phase72CHumanGateTests(unittest.TestCase):
             corpus, theme = self._package(Path(temp))
             raw = corpus / "sources/a/raw/source_raw.html"
             original_claim_hash = hashlib.sha256((theme / "theme_canonical_claims.jsonl").read_bytes()).hexdigest()
-            result = prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus)
+            sync = Path(temp) / "sync"
+            result = prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus, review_sync_root=sync)
             self.assertEqual(result["status"], "gate_a_pending")
             self.assertEqual(result["original_p0_count"], 1)
             self.assertEqual(result["claim_local_p0_count"], 1)
@@ -88,19 +89,24 @@ class Phase72CHumanGateTests(unittest.TestCase):
             self.assertNotIn("10x", json.dumps(p0))
             self.assertLessEqual(len(p0[0]["direct_support_excerpt"]), 3)
             self.assertTrue(p0[0]["local_context"]["previous_turn"])
+            synced = sync / "phase_7_2c_1_naval_theme_gate"
+            self.assertTrue((synced / "views/theme_claim_review.html").exists())
+            self.assertTrue((synced / "templates/p0_verification_decisions.template.jsonl").exists())
+            self.assertTrue((synced / "sync_manifest.json").exists())
             self.assertEqual(original_claim_hash, hashlib.sha256((theme / "theme_canonical_claims.jsonl").read_bytes()).hexdigest())
             self.assertEqual(hashlib.sha256(raw.read_bytes()).hexdigest(), hashlib.sha256(b"<html>immutable</html>").hexdigest())
             first_hashes = {path.relative_to(theme): hashlib.sha256(path.read_bytes()).hexdigest() for path in theme.rglob("*") if path.is_file()}
-            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus)
+            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus, review_sync_root=sync)
             second_hashes = {path.relative_to(theme): hashlib.sha256(path.read_bytes()).hexdigest() for path in theme.rglob("*") if path.is_file()}
             self.assertEqual(first_hashes, second_hashes)
 
     def test_gate_a_rejects_pending_and_auto_rejects_relation_with_rejected_parent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             corpus, theme = self._package(Path(temp))
-            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus)
+            sync = Path(temp) / "sync"
+            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus, review_sync_root=sync)
             with self.assertRaisesRegex(ValueError, "missing or invalid"):
-                finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=theme / "theme_claim_review_decisions.template.jsonl", relation_decisions_path=theme / "relation_review_decisions.template.jsonl", insight_decisions_path=theme / "insight_review_decisions.template.jsonl")
+                finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=theme / "theme_claim_review_decisions.template.jsonl", relation_decisions_path=theme / "relation_review_decisions.template.jsonl", insight_decisions_path=theme / "insight_review_decisions.template.jsonl", review_sync_root=sync)
             claims = _rows(theme / "theme_claim_review_decisions.template.jsonl")
             for row in claims:
                 row.update({"decision": "accept", "entailment_status": "fully_supported", "epistemic_status": "directly_supported", "speaker_attribution_correct": True, "conditions_preserved": True, "claim_scope_valid": True, "support_independence_sufficient": True, "reviewer": "tester", "reviewed_at": "2026-07-20T00:00:00Z"})
@@ -110,7 +116,7 @@ class Phase72CHumanGateTests(unittest.TestCase):
             relations = _rows(theme / "relation_review_decisions.template.jsonl")
             for name, rows in (("c.jsonl", claims), ("i.jsonl", insights), ("r.jsonl", relations)):
                 _write_jsonl(theme / name, rows)
-            result = finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=theme / "c.jsonl", relation_decisions_path=theme / "r.jsonl", insight_decisions_path=theme / "i.jsonl")
+            result = finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=theme / "c.jsonl", relation_decisions_path=theme / "r.jsonl", insight_decisions_path=theme / "i.jsonl", review_sync_root=sync)
             self.assertEqual(result["auto_rejected_parent_relation_count"], 1)
             self.assertEqual(result["active_p0_count"], 0)
             self.assertEqual(_rows(theme / "provisionally_rejected_relations.jsonl")[0]["review_status"], "rejected_parent_claim")
@@ -118,9 +124,10 @@ class Phase72CHumanGateTests(unittest.TestCase):
     def test_gate_b_freezes_provisional_without_claiming_external_fact_verification(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             corpus, theme = self._package(Path(temp))
-            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus)
+            sync = Path(temp) / "sync"
+            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus, review_sync_root=sync)
             paths = self._gate_a_decisions(theme)
-            gate_a = finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=paths[0], relation_decisions_path=paths[1], insight_decisions_path=paths[2])
+            gate_a = finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=paths[0], relation_decisions_path=paths[1], insight_decisions_path=paths[2], review_sync_root=sync)
             self.assertEqual(gate_a["active_p0_count"], 1)
             verification = _rows(theme / "p0_verification_decisions.template.jsonl")
             verification[0].update({"source_fidelity_status": "verified", "external_fact_status": "not_checked", "verification_note": "Official source preserves the negation; external economics claim was not checked.", "reviewer": "tester", "reviewed_at": "2026-07-20T00:00:00Z"})
@@ -144,13 +151,14 @@ class Phase72CHumanGateTests(unittest.TestCase):
     def test_unchecked_external_fact_can_publish_only_when_human_frames_hypothesis(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             corpus, theme = self._package(Path(temp))
-            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus)
+            sync = Path(temp) / "sync"
+            prepare_phase72c_theme(theme_dir=theme, corpus_dir=corpus, review_sync_root=sync)
             claims_path, relations_path, insights_path = self._gate_a_decisions(theme)
             claims = _rows(claims_path)
             claims[1]["final_statement"] = "Guillermo suggests that problem choice may not be commoditized."
             claims[1]["epistemic_status"] = "hypothesis"
             _write_jsonl(claims_path, claims)
-            finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=claims_path, relation_decisions_path=relations_path, insight_decisions_path=insights_path)
+            finalize_phase72c_gate_a(theme_dir=theme, corpus_dir=corpus, claim_decisions_path=claims_path, relation_decisions_path=relations_path, insight_decisions_path=insights_path, review_sync_root=sync)
             verification = _rows(theme / "p0_verification_decisions.template.jsonl")
             verification[0].update({"source_fidelity_status": "verified", "external_fact_status": "not_checked", "verification_note": "Source wording confirmed; kept as a named hypothesis.", "reviewer": "tester", "reviewed_at": "2026-07-20T00:00:00Z"})
             path = theme / "verification.jsonl"

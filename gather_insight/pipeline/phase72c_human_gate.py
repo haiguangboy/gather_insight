@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from .review_sync import sync_review_bundle
+
 
 SCHEMA_VERSION = "phase_7_2c_v1"
 THEME_SLUG = "ai_execution_commoditization_judgment_scarcity"
@@ -60,6 +62,31 @@ _SUBTHEME_DOMAIN = {
     "new_bottlenecks": "regulation_and_institutions",
     "internal_tensions": "cross_domain_synthesis",
 }
+
+
+def _sync_phase72c_review(theme_dir: Path, review_sync_root: Path | None, *, gate: str) -> Path:
+    relative_files = [
+        ("views/theme_claim_review.html", "views/theme_claim_review.html"),
+        ("views/theme_insight_review.html", "views/theme_insight_review.html"),
+        ("views/theme_relation_review.html", "views/theme_relation_review.html"),
+        ("views/p0_verification_review.html", "views/p0_verification_review.html"),
+        ("theme_claim_review_decisions.template.jsonl", "templates/theme_claim_review_decisions.template.jsonl"),
+        ("insight_review_decisions.template.jsonl", "templates/insight_review_decisions.template.jsonl"),
+        ("relation_review_decisions.template.jsonl", "templates/relation_review_decisions.template.jsonl"),
+        ("p0_verification_decisions.template.jsonl", "templates/p0_verification_decisions.template.jsonl"),
+        ("claim_local_p0_verification_queue.jsonl", "data/claim_local_p0_verification_queue.jsonl"),
+        ("active_p0_verification_queue.jsonl", "data/active_p0_verification_queue.jsonl"),
+        ("external_verification_queue.jsonl", "data/external_verification_queue.jsonl"),
+        ("reports/human_gate_report.md", "reports/human_gate_report.md"),
+        ("reports/publication_readiness_report.md", "reports/publication_readiness_report.md"),
+        ("reports/evidence_independence_report.md", "reports/evidence_independence_report.md"),
+    ]
+    return sync_review_bundle(
+        bundle_slug="phase_7_2c_1_naval_theme_gate",
+        files=[(theme_dir / source, target) for source, target in relative_files],
+        root=review_sync_root,
+        title=f"Phase 7.2C.1 Naval Theme Gate — {gate}",
+    )
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -468,7 +495,7 @@ def _claim_local_p0(
     return sorted(queue, key=lambda row: (row["theme_claim_ids"][0], row["risk_type"], row["risk_token"].lower()))
 
 
-def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path) -> dict[str, Any]:
+def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path, review_sync_root: Path | None = None) -> dict[str, Any]:
     """Generate Gate A plus claim-local P0 previews without mutating Phase 7.2A/B facts."""
     before = _tree_hashes(corpus_dir)
     claims = _read_jsonl(theme_dir / "theme_canonical_claims.jsonl")
@@ -525,7 +552,8 @@ def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path) -> dict[str, An
     after = _tree_hashes(corpus_dir)
     if before != after:
         raise ValueError("Phase 7.2C preparation modified frozen Phase 7.2A corpus")
-    return {"status": "gate_a_pending", "theme_claim_count": len(enriched_claims), "relation_count": len(relations), "insight_count": len(enriched_insights), "original_p0_count": original_p0_count, "claim_local_p0_count": len(p0), "excluded_false_positive_count": false_positive_count, "collapsed_duplicate_p0_count": collapsed_duplicate_count, "total_p0_workload_reduction": total_reduction, "active_p0_count": None, "phase72a_input_unchanged": True, "phase72b_records_unchanged": True, "theme_dir": str(theme_dir)}
+    sync_dir = _sync_phase72c_review(theme_dir, review_sync_root, gate="Gate A pending")
+    return {"status": "gate_a_pending", "theme_claim_count": len(enriched_claims), "relation_count": len(relations), "insight_count": len(enriched_insights), "original_p0_count": original_p0_count, "claim_local_p0_count": len(p0), "excluded_false_positive_count": false_positive_count, "collapsed_duplicate_p0_count": collapsed_duplicate_count, "total_p0_workload_reduction": total_reduction, "active_p0_count": None, "phase72a_input_unchanged": True, "phase72b_records_unchanged": True, "theme_dir": str(theme_dir), "review_sync_dir": str(sync_dir)}
 
 
 def _validate_complete(rows: list[dict[str, Any]], expected: set[str], id_key: str, allowed: set[str], kind: str) -> dict[str, dict[str, Any]]:
@@ -694,7 +722,7 @@ def _relation_gate_decisions(
 
 def finalize_phase72c_gate_a(
     *, theme_dir: Path, corpus_dir: Path, claim_decisions_path: Path, relation_decisions_path: Path,
-    insight_decisions_path: Path,
+    insight_decisions_path: Path, review_sync_root: Path | None = None,
 ) -> dict[str, Any]:
     """Materialize provisional assets first, then derive their active claim-local P0."""
     before = _tree_hashes(corpus_dir)
@@ -751,7 +779,8 @@ def finalize_phase72c_gate_a(
     (reports / "publication_readiness_report.md").write_text(f"# Publication Readiness Report\n\n- theme_asset_readiness: **blocked** (Gate B source fidelity pending: {len(active_p0)})\n- factual_publication_readiness: **blocked**\n- external verification pending: {len(external_queue)}\n\nExternal verification does not block a provisional theme freeze, but it blocks unqualified factual publication.\n", encoding="utf-8")
     if before != _tree_hashes(corpus_dir):
         raise ValueError("Phase 7.2C Gate A modified frozen Phase 7.2A corpus")
-    return {"status": "gate_a_complete_gate_b_pending", "provisionally_accepted_theme_claim_count": len(accepted_claims), "provisionally_accepted_relation_count": len(accepted_relations), "provisionally_accepted_insight_count": len(accepted_insights), "auto_rejected_parent_relation_count": len(auto_parent_rejections), "claim_local_p0_preview_count": preview_count, "active_p0_count": len(active_p0), "p0_removed_after_gate_a": removed_count, "external_verification_pending_count": len(external_queue), "phase72a_input_unchanged": True}
+    sync_dir = _sync_phase72c_review(theme_dir, review_sync_root, gate="Gate B active P0")
+    return {"status": "gate_a_complete_gate_b_pending", "provisionally_accepted_theme_claim_count": len(accepted_claims), "provisionally_accepted_relation_count": len(accepted_relations), "provisionally_accepted_insight_count": len(accepted_insights), "auto_rejected_parent_relation_count": len(auto_parent_rejections), "claim_local_p0_preview_count": preview_count, "active_p0_count": len(active_p0), "p0_removed_after_gate_a": removed_count, "external_verification_pending_count": len(external_queue), "phase72a_input_unchanged": True, "review_sync_dir": str(sync_dir)}
 
 
 def _write_publication_candidates(theme_dir: Path, claims: list[dict[str, Any]], insights: list[dict[str, Any]]) -> None:

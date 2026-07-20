@@ -53,6 +53,11 @@ external facts, then use `finalize-phase72c-theme` to freeze a provisional
 See
 `docs/PHASE_7_2C_HUMAN_THEME_GATE.md`.
 
+Human-review bundles are copied by default to
+`~/Sync/Obsidian/gather_insight/<bundle_slug>/` so they are available on the
+user's synchronized devices. Only an explicit review-artifact allow-list is
+copied; raw inputs and secrets are excluded.
+
 The command writes `data/media/<media_id>/manifest.yaml`, `source.md`, `evidence.jsonl`, `review.md`, `processing_report.json`, and a per-run JSONL log. Re-running the same input is data-idempotent while every run receives a unique `run_id`. A changed source is rejected unless `--force-source` is explicit, and an existing human `review.md` is never overwritten.
 
 `--provider auto` is the default. It checks `--official-file`, `--ulisten-file`, `--usetranscribe-file`, `--transcript-file`, and `--youtube-export-file` in source-policy order. `resolve-sources` performs the checks without ingesting. URL-only hints are recorded but require a human export before they can become the selected text source.

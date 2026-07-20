@@ -20,6 +20,15 @@ This creates three Gate A review pages and a claim-local P0 preview:
 - `views/p0_verification_review.html` — claim-local preview only; the active
   queue is regenerated after Gate A.
 
+The allow-listed review pages, templates, queues, and reports are also copied
+automatically to:
+
+`~/Sync/Obsidian/gather_insight/phase_7_2c_1_naval_theme_gate/`
+
+Set `GATHER_INSIGHT_REVIEW_SYNC_ROOT` or pass `--review-sync-root` only when a
+different synchronized root is required. Raw sources, caches, credentials, and
+unrelated generated files are not copied.
+
 Preparation adds separate publication-family, speaker, organization, domain,
 and evidence-type independence counts. Publication-family count is explicitly
 not treated as independent industry corroboration.

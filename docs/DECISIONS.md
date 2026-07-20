@@ -88,6 +88,15 @@ source fidelity may freeze a `human_reviewed_provisional` theme asset, while
 unchecked external facts remain queued and prevent unqualified factual
 publication.
 
+## 2026-07-20 — Human review bundles use the synchronized Obsidian handoff
+
+Review-producing workflows should copy an explicit allow-list of HTML pages,
+decision templates, review queues, and reports to
+`~/Sync/Obsidian/gather_insight/<bundle_slug>/`. Raw source corpora, caches,
+credentials, and unrelated outputs are excluded. The path can be overridden by
+`GATHER_INSIGHT_REVIEW_SYNC_ROOT` for another machine without committing an
+absolute home path.
+
 ## 2026-07-19: Naval recent-six corpus is a fixed, cache-first official-source snapshot
 
 Phase 7.2A hard-codes the six archive entries selected by the experiment, validates each official title and canonical URL, and stops at the cursor rather than crawling the site. The four frontier-founders pages share one independence group, so serialized/full-page repetition never counts as independent support. Claims are verbatim evidence sentences from source-labelled speaker turns; cross-source trends and industry implications are separately marked system synthesis. The `Live in the Future` page has no official transcript body in the snapshot, so its description is retained as an unknown-speaker section and the missing transcript is reported instead of being replaced with audio or third-party text.
