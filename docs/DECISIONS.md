@@ -78,6 +78,16 @@ decisions for all theme claims, relations, insights, and P0 verification items.
 Publication candidates can only read accepted claims and accepted insights and
 are never automatically published.
 
+## 2026-07-20 — Phase 7.2C.1 separates Gate A, source fidelity, and external facts
+
+Theme claims, insights, and relations are reviewed before verification work is
+activated. P0 is derived from final claim-local tokens and direct evidence, not
+from arbitrary numbers or entities elsewhere in a long linked section. Source
+fidelity and external factual verification have separate statuses. Completed
+source fidelity may freeze a `human_reviewed_provisional` theme asset, while
+unchecked external facts remain queued and prevent unqualified factual
+publication.
+
 ## 2026-07-19: Naval recent-six corpus is a fixed, cache-first official-source snapshot
 
 Phase 7.2A hard-codes the six archive entries selected by the experiment, validates each official title and canonical URL, and stops at the cursor rather than crawling the site. The four frontier-founders pages share one independence group, so serialized/full-page repetition never counts as independent support. Claims are verbatim evidence sentences from source-labelled speaker turns; cross-source trends and industry implications are separately marked system synthesis. The `Live in the Future` page has no official transcript body in the snapshot, so its description is retained as an unknown-speaker section and the missing transcript is reported instead of being replaced with audio or third-party text.

@@ -1,5 +1,6 @@
 # Publication Readiness Report
 
-Rating: **BLOCKED — human gate incomplete**
+- theme_asset_readiness: **blocked** (Gate A incomplete)
+- factual_publication_readiness: **blocked**
 
-The corpus package is ready for review, but publication candidates must not be generated until all 30 theme claims, 10 relations, 7 insights, and conclusion-changing P0 items have explicit human decisions.
+Gate A precedes verification. External factual verification is distinct from source fidelity and is not required to freeze a clearly provisional theme asset.

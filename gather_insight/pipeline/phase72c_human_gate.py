@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,8 +38,10 @@ CLAIM_DECISIONS = {
 INSIGHT_DECISIONS = {"accept", "accept_with_edit", "split", "reject", "defer_for_more_evidence"}
 RELATION_DECISIONS = {"accept", "edit", "reject"}
 VERIFICATION_DECISIONS = {
-    "verified_from_official_text", "corrected", "rejected", "not_applicable", "defer_for_external_check",
+    "verified", "corrected", "rejected", "not_applicable",
 }
+SOURCE_FIDELITY_STATUSES = {"pending", "verified", "corrected", "rejected", "not_applicable"}
+EXTERNAL_FACT_STATUSES = {"not_required", "not_checked", "verified", "contradicted", "insufficient_evidence"}
 EPISTEMIC_STATUSES = {
     "directly_supported", "supported_synthesis", "provisional", "hypothesis", "contested", "insufficient_evidence",
 }
@@ -279,56 +282,194 @@ def _relation_review_page(relations: list[dict[str, Any]], claim_by_id: dict[str
     return _page("Phase 7.2C Relation Review", "Check causal overreach, mere topical similarity, relation direction, and bottleneck-shift alternatives.", cards, _download_script("relation", "relation_review_decisions.jsonl", fields))
 
 
-def _verification_review_page(rows: list[dict[str, Any]], claim_by_id: dict[str, dict[str, Any]], evidence_by_id: dict[str, dict[str, Any]]) -> str:
+def _highlight(text: str, token: str) -> str:
+    escaped = html.escape(text)
+    if not token:
+        return escaped
+    return re.sub(re.escape(html.escape(token)), lambda match: f'<mark>{match.group(0)}</mark>', escaped, flags=re.IGNORECASE)
+
+
+def _highlight_tokens(text: str, tokens: list[str]) -> str:
+    output = html.escape(text)
+    escaped_tokens = [re.escape(html.escape(token)) for token in sorted({token for token in tokens if token}, key=len, reverse=True)]
+    if not escaped_tokens:
+        return output
+    return re.sub("|".join(escaped_tokens), lambda match: f'<mark>{match.group(0)}</mark>', output, flags=re.IGNORECASE)
+
+
+def _verification_review_page(rows: list[dict[str, Any]], claim_by_id: dict[str, dict[str, Any]], evidence_by_id: dict[str, dict[str, Any]], *, active: bool) -> str:
     cards = []
     for index, queue in enumerate(rows, 1):
         claims = [claim_by_id[row_id] for row_id in queue.get("theme_claim_ids", []) if row_id in claim_by_id]
-        evidence_ids = _unique(eid for claim in claims for eid in claim.get("evidence_ids", []))
+        evidence_ids = list(queue.get("risk_evidence_ids", []))
         evidence = [evidence_by_id[row_id] for row_id in evidence_ids if row_id in evidence_by_id]
-        row = {"schema_version": SCHEMA_VERSION, "queue_id": queue["queue_id"], "decision": "", "corrected_value": "", "checked_evidence_ids": evidence_ids, "verification_note": "", "reviewer": "", "reviewed_at": ""}
+        row = {"schema_version": SCHEMA_VERSION, "queue_id": queue["queue_id"], "source_fidelity_status": "pending", "external_fact_status": queue.get("external_fact_status", "not_checked"), "corrected_value": "", "checked_evidence_ids": evidence_ids, "verification_note": "", "reviewer": "", "reviewed_at": ""}
+        direct = queue.get("direct_support_excerpt", [])[:3]
+        context = queue.get("local_context", {})
+        metadata = queue.get("source_metadata", {})
+        tokens = list(queue.get("risk_tokens") or [queue.get("risk_token", "")])
         cards.append(
             f'<article class="card pending" data-row="{html.escape(json.dumps(row, ensure_ascii=False), quote=True)}"><h2>{index}. {html.escape(queue["queue_id"])}</h2>'
-            f'<p class="risk">Risks: {html.escape(", ".join(queue.get("reasons", [])))} · conclusion impact: {html.escape(queue.get("conclusion_impact", ""))}</p>'
+            f'<p class="risk">Risk: {html.escape(queue.get("risk_type", ""))} · token: <mark>{html.escape(queue.get("risk_token", ""))}</mark> · conclusion impact: {html.escape(queue.get("conclusion_impact", ""))}</p>'
+            f'<p><strong>Why conclusion-changing:</strong> {html.escape(queue.get("why_conclusion_changing", ""))}</p>'
             + (f'<p><strong>Verification question:</strong> {html.escape(queue["verification_question"])}</p>' if queue.get("verification_question") else '') +
-            '<p><strong>Theme claims:</strong> ' + html.escape(" | ".join(row["statement"] for row in claims)) + '</p><div class="evidence">' + html.escape("\n\n".join(str(row.get("source_text") or "") for row in evidence)) + '</div>'
-            '<div class="form">' + _select_html("decision", sorted(VERIFICATION_DECISIONS), class_name="decision") +
+            '<p><strong>Theme claim:</strong> ' + html.escape(" | ".join(row["statement"] for row in claims)) + '</p>'
+            f'<p><strong>Speaker/source/date:</strong> {html.escape(str(metadata.get("speaker") or "unknown"))} · {html.escape(str(metadata.get("source_title") or metadata.get("source_id") or ""))} · {html.escape(str(metadata.get("published_at") or ""))}</p>'
+            '<h3>Direct supporting excerpt</h3><div class="evidence">' + "<br><br>".join(_highlight_tokens(str(text), tokens) for text in direct) + '</div>'
+            '<h3>Adjacent-turn context</h3><div class="evidence"><strong>Previous:</strong> ' + html.escape(str(context.get("previous_turn") or "not available")) + '<br><br><strong>Current:</strong> ' + _highlight_tokens(str(context.get("current_turn") or ""), tokens) + '<br><br><strong>Next:</strong> ' + html.escape(str(context.get("next_turn") or "not available")) + '</div>'
+            '<details><summary>Full linked evidence and section</summary><div class="evidence">' + html.escape("\n\n".join(str(row.get("source_text") or "") for row in evidence)) + '</div></details>'
+            '<div class="form">' + _select_html("source fidelity status", ["pending", "verified", "corrected", "rejected", "not_applicable"], class_name="source", blank=False, selected="pending") +
+            _select_html("external fact status", ["not_required", "not_checked", "verified", "contradicted", "insufficient_evidence"], class_name="external", blank=False, selected=str(queue.get("external_fact_status", "not_checked"))) +
             '<label>corrected value/wording<input class="corrected"></label><label class="wide">verification note<textarea class="note"></textarea></label></div></article>'
         )
-    fields = [("decision", ".decision", "str"), ("corrected_value", ".corrected", "str"), ("verification_note", ".note", "str")]
-    return _page("Phase 7.2C P0 Verification", "Verify only conclusion-changing P0 numeric, negation, entity, attribution, software-scarcity, small-team, testing, and regulation claims.", cards, _download_script("p0_verification", "p0_verification_decisions.jsonl", fields))
+    fields = [("source_fidelity_status", ".source", "str"), ("external_fact_status", ".external", "str"), ("corrected_value", ".corrected", "str"), ("verification_note", ".note", "str")]
+    title = "Phase 7.2C Active P0 Verification" if active else "Phase 7.2C Claim-local P0 Preview"
+    summary = "Gate B verifies source fidelity separately from external factual support. Only claim-local risk spans are shown by default." if active else "Preview only. Complete Gate A first; rejected or rewritten claims will be removed before this queue becomes active."
+    return _page(title, summary, cards, _download_script("p0_verification", "p0_verification_decisions.jsonl", fields))
 
 
 def _decision_templates(theme_dir: Path, claims: list[dict[str, Any]], relations: list[dict[str, Any]], insights: list[dict[str, Any]], p0: list[dict[str, Any]]) -> None:
     _write_jsonl(theme_dir / "theme_claim_review_decisions.template.jsonl", ({"schema_version": SCHEMA_VERSION, "record_type": "theme_claim", "theme_claim_id": row["theme_claim_id"], "decision": "", "final_statement": row["statement"], "merge_into": "", "split_statements": [], "entailment_status": "", "speaker_attribution_correct": None, "conditions_preserved": None, "claim_scope_valid": None, "support_independence_sufficient": None, "epistemic_status": "", "verification_risks": [], "reviewer_note": "", "reviewer": "", "reviewed_at": ""} for row in claims))
     _write_jsonl(theme_dir / "relation_review_decisions.template.jsonl", ({"schema_version": SCHEMA_VERSION, "record_type": "relation", "relation_id": row["relation_id"], "decision": "", "final_relation_type": row["relation_type"], "direction_correct": None, "final_rationale": row["rationale"], "reviewer_note": "", "reviewer": "", "reviewed_at": ""} for row in relations))
     _write_jsonl(theme_dir / "insight_review_decisions.template.jsonl", ({"schema_version": SCHEMA_VERSION, "record_type": "insight", "insight_id": row["insight_id"], "decision": "", "final_statement": row["statement"], "split_statements": [], "insight_type": row["insight_type"], "epistemic_status": "", "support_scope": "", "conditions_preserved": None, "causal_chain_valid": None, "independent_support_sufficient": None, "verification_required": None, "reviewer_note": "", "reviewer": "", "reviewed_at": ""} for row in insights))
-    _write_jsonl(theme_dir / "p0_verification_decisions.template.jsonl", ({"schema_version": SCHEMA_VERSION, "record_type": "p0_verification", "queue_id": row["queue_id"], "decision": "", "corrected_value": "", "checked_evidence_ids": [], "verification_note": "", "reviewer": "", "reviewed_at": ""} for row in p0))
+    _write_p0_template(theme_dir, p0)
 
 
-def _p0_scope(verification: list[dict[str, Any]], claims: list[dict[str, Any]], insights: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Retain upstream P0 and add explicit conclusion-changing epistemic checks."""
-    rows = [dict(row) for row in verification if row.get("priority") == "P0"]
-    claim_by_suffix = {row["theme_claim_id"].split(".")[-1]: row for row in claims}
-    judgment_claim = claim_by_suffix.get("claim_008_judgment_and_taste")
-    if judgment_claim and not any(judgment_claim["theme_claim_id"] in row.get("theme_claim_ids", []) for row in rows):
-        rows.append({
-            "schema_version": SCHEMA_VERSION,
-            "queue_id": "verify.phase72c.ai_judgment_taste_creativity_scope",
-            "priority": "P0",
-            "conclusion_impact": "high",
-            "reasons": ["negation", "epistemic_scope", "speaker_attribution"],
-            "theme_claim_ids": [judgment_claim["theme_claim_id"]],
-            "insight_ids": [row["insight_id"] for row in insights if judgment_claim["theme_claim_id"] in row.get("supporting_theme_claim_ids", [])],
-            "status": "pending",
-            "review_status": "pending",
-            "theme_slug": THEME_SLUG,
-            "verification_question": "Does the official evidence support the bounded current-observation claim, or does it overstate that AI categorically lacks judgment, taste, or creativity?",
-        })
-    return sorted(rows, key=lambda row: row["queue_id"])
+def _write_p0_template(theme_dir: Path, p0: list[dict[str, Any]]) -> None:
+    _write_jsonl(theme_dir / "p0_verification_decisions.template.jsonl", ({"schema_version": SCHEMA_VERSION, "record_type": "p0_verification", "queue_id": row["queue_id"], "source_fidelity_status": "pending", "external_fact_status": row.get("external_fact_status", "not_checked"), "corrected_value": "", "checked_evidence_ids": row.get("risk_evidence_ids", []), "verification_note": "", "reviewer": "", "reviewed_at": ""} for row in p0))
+
+
+_NUMBER_RE = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?:%|x)?(?!\w)", re.IGNORECASE)
+_POLARITY_TERMS = ("not", "no", "never", "without", "lack", "cannot", "can't", "declin", "decreas", "reduc", "less", "scarcity", "abundan")
+
+
+def _sentences(text: str) -> list[str]:
+    return [row.strip() for row in re.split(r"(?<=[.!?])\s+|\n+", text) if row.strip()]
+
+
+def _local_context(source_claim: dict[str, Any], sections_by_id: dict[str, dict[str, Any]], ordered_sections: dict[str, list[dict[str, Any]]]) -> tuple[dict[str, str], dict[str, str]]:
+    section_ids = source_claim.get("source_section_ids", [])
+    section = next((sections_by_id[row_id] for row_id in section_ids if row_id in sections_by_id), None)
+    if not section:
+        return {}, {"speaker": source_claim.get("speaker", "unknown"), "source_id": source_claim.get("source_id", ""), "published_at": source_claim.get("published_at", "")}
+    sequence = ordered_sections.get(section["source_id"], [])
+    position = next((index for index, row in enumerate(sequence) if row["section_id"] == section["section_id"]), -1)
+    current_text = str(section.get("text") or "")
+    needle = str(source_claim.get("claim") or "")
+    found = current_text.lower().find(needle.lower()) if needle else -1
+    current_excerpt = current_text[max(0, found - 500):found + len(needle) + 500] if found >= 0 else current_text[:1000]
+    previous_text = str(sequence[position - 1].get("text") or "") if position > 0 else ""
+    next_text = str(sequence[position + 1].get("text") or "") if 0 <= position < len(sequence) - 1 else ""
+    context = {
+        "previous_turn": previous_text[-600:],
+        "current_turn": current_excerpt,
+        "next_turn": next_text[:600],
+    }
+    metadata = {"speaker": section.get("speaker", source_claim.get("speaker", "unknown")), "source_id": section.get("source_id", ""), "source_title": section.get("title", ""), "published_at": section.get("published_at", ""), "source_url": section.get("source_url", "")}
+    return context, metadata
+
+
+def _risk_spans(tokens: list[str], source_claims: list[dict[str, Any]], evidence: list[dict[str, Any]]) -> tuple[list[str], list[str], list[dict[str, Any]]]:
+    source_ids, evidence_ids, spans = [], [], []
+    for row in source_claims:
+        text = str(row.get("claim") or "")
+        matches = [match for token in tokens if (match := re.search(re.escape(token), text, re.IGNORECASE))]
+        if matches:
+            source_ids.append(row["claim_id"])
+            for match in matches:
+                spans.append({"source_claim_id": row["claim_id"], "char_start": match.start(), "char_end": match.end(), "text": text})
+    for row in evidence:
+        text = str(row.get("source_text") or "")
+        matches = [match for token in tokens if (match := re.search(re.escape(token), text, re.IGNORECASE))]
+        if matches:
+            evidence_ids.append(row["evidence_id"])
+            for match in matches:
+                spans.append({"evidence_id": row["evidence_id"], "char_start": match.start(), "char_end": match.end(), "text": text[max(0, match.start()-120):match.end()+120]})
+    return _unique(source_ids), _unique(evidence_ids), spans
+
+
+def _contains_polarity(text: str, term: str) -> bool:
+    if term in {"declin", "decreas", "reduc", "abundan"}:
+        return term in text.lower()
+    if term == "lack":
+        return bool(re.search(r"\black\w*\b", text, re.IGNORECASE))
+    return bool(re.search(rf"\b{re.escape(term)}\b", text, re.IGNORECASE))
+
+
+def _claim_local_p0(
+    claims: list[dict[str, Any]], insights: list[dict[str, Any]], source_claim_by_id: dict[str, dict[str, Any]],
+    evidence_by_id: dict[str, dict[str, Any]], sections: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    insight_claim_ids = {claim_id for row in insights for claim_id in row.get("supporting_theme_claim_ids", [])}
+    explicit_core_suffixes = {"claim_008_judgment_and_taste", "claim_019_pure_software_scarcity", "claim_017_small_teams", "claim_018_more_firms_not_less_work", "claim_026_physical_testing", "claim_029_regulatory_bottleneck"}
+    sections_by_id = {row["section_id"]: row for row in sections}
+    ordered: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in sections:
+        ordered[row["source_id"]].append(row)
+    for rows in ordered.values():
+        rows.sort(key=lambda row: row.get("section_order", 0))
+    queue: list[dict[str, Any]] = []
+    for claim in claims:
+        if claim["theme_claim_id"] not in insight_claim_ids and not any(claim["theme_claim_id"].endswith(suffix) for suffix in explicit_core_suffixes):
+            continue
+        statement = str(claim.get("statement") or "")
+        lowered = statement.lower()
+        parents = [source_claim_by_id[row_id] for row_id in claim.get("parent_source_claim_ids", []) if row_id in source_claim_by_id]
+        evidence = [evidence_by_id[row_id] for row_id in claim.get("evidence_ids", []) if row_id in evidence_by_id]
+        risks: list[dict[str, Any]] = []
+        statement_numbers = _NUMBER_RE.findall(statement)
+        quantitative_paraphrase = bool(re.search(r"orders? of magnitude|\b(times|fold|percent(?:age)?)\b", lowered))
+        if statement_numbers or quantitative_paraphrase:
+            candidates = statement_numbers or _unique(token for row in parents for token in _NUMBER_RE.findall(str(row.get("claim") or "")))
+            if candidates:
+                risks.append({"risk_type": "numeric", "risk_token": " / ".join(candidates), "search_tokens": candidates, "why": "The final theme statement contains or summarizes a quantity whose value, magnitude, or boundary condition can change the conclusion."})
+        for term in _POLARITY_TERMS:
+            if _contains_polarity(statement, term) and any(_contains_polarity(str(row.get("claim") or ""), term) for row in parents):
+                risks.append({"risk_type": "negation", "risk_token": term, "search_tokens": [term], "why": "The final statement preserves a negation or directional claim that can reverse or materially narrow the conclusion."})
+        for token in _unique(entity for row in evidence for entity in row.get("entity_risks", []) if str(entity).lower() in lowered):
+            if any(str(token).lower() in str(row.get("claim") or "").lower() for row in parents):
+                risks.append({"risk_type": "entity", "risk_token": token, "search_tokens": [token], "why": "The named person, company, model, paper, or technical entity appears in the final statement and affects its meaning."})
+        if claim["theme_claim_id"].endswith("claim_008_judgment_and_taste"):
+            risks = [row for row in risks if row["risk_type"] != "negation"]
+            risks.append({"risk_type": "epistemic_scope", "risk_token": "lacks judgment / taste / creativity", "search_tokens": ["taste", "judgment", "creativity", "don't have"], "why": "A categorical claim that AI lacks judgment, taste, or creativity may overgeneralize a bounded current observation."})
+        if claim["theme_claim_id"].endswith("claim_019_pure_software_scarcity"):
+            risks = [row for row in risks if row["risk_type"] != "negation"]
+            risks.append({"risk_type": "epistemic_scope", "risk_token": "reducing pure-software scarcity", "search_tokens": ["pure software dead", "pure software", "software developed fairly quickly"], "why": "The final statement turns a speculative question and good-enough-software observation into a directional scarcity claim."})
+        if claim["theme_claim_id"].endswith("claim_017_small_teams"):
+            risks.append({"risk_type": "causal_scope", "risk_token": "AI enables smaller teams", "search_tokens": ["smaller team", "small team", "fewer people"], "why": "The final statement links AI leverage to team-size reduction; source fidelity must preserve whether this is observation, prediction, or general causal claim."})
+        if claim["theme_claim_id"].endswith("claim_026_physical_testing"):
+            risks.append({"risk_type": "causal_scope", "risk_token": "physical testing remains a bottleneck", "search_tokens": ["physical testing", "test", "hardware"], "why": "The role of physical testing is part of the core bottleneck-shift chain and must not be inferred from unrelated hardware context."})
+        if claim["theme_claim_id"].endswith("claim_029_regulatory_bottleneck"):
+            risks.append({"risk_type": "causal_scope", "risk_token": "regulation becomes a bottleneck", "search_tokens": ["regulation", "regulatory", "FAA", "FDA"], "why": "The claim connects faster technical execution to regulatory constraint; its direction and scope can change the industrial conclusion."})
+        seen: set[tuple[str, str]] = set()
+        for risk in risks:
+            risk_type, token, why = risk["risk_type"], risk["risk_token"], risk["why"]
+            key = (risk_type, token.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            search_tokens = list(risk.get("search_tokens") or [token])
+            source_ids, evidence_ids, spans = _risk_spans(search_tokens, parents, evidence)
+            if risk_type != "epistemic_scope" and not source_ids:
+                continue
+            direct_parents = [row for row in parents if row["claim_id"] in source_ids] or parents[:1]
+            direct_excerpt = [sentence for row in direct_parents for sentence in _sentences(str(row.get("claim") or "")) if any(search.lower() in sentence.lower() for search in search_tokens)][:3]
+            if not direct_excerpt:
+                direct_excerpt = [str(row.get("claim") or "") for row in direct_parents[:3]]
+            context, metadata = _local_context(direct_parents[0], sections_by_id, ordered) if direct_parents else ({}, {})
+            digest = hashlib.sha256(f'{claim["theme_claim_id"]}|{risk_type}|{token}'.encode()).hexdigest()[:10]
+            external_required = (
+                risk_type in {"causal_scope", "epistemic_scope"}
+                or (risk_type == "numeric" and claim.get("claim_type") != "open_question")
+                or (risk_type == "negation" and claim.get("claim_type") != "open_question")
+                or claim.get("claim_type") in {"fact", "prediction", "causal_claim", "technical_mechanism", "engineering_constraint", "institutional_claim", "geopolitical_claim"}
+            )
+            queue.append({"schema_version": SCHEMA_VERSION, "queue_id": f"verify.phase72c.local.{digest}", "theme_slug": THEME_SLUG, "theme_claim_ids": [claim["theme_claim_id"]], "insight_ids": [row["insight_id"] for row in insights if claim["theme_claim_id"] in row.get("supporting_theme_claim_ids", [])], "risk_source_claim_ids": source_ids, "risk_evidence_ids": evidence_ids or claim.get("evidence_ids", [])[:1], "risk_text_spans": spans, "risk_token": token, "risk_tokens": search_tokens, "risk_type": risk_type, "conclusion_impact": "high", "why_conclusion_changing": why, "direct_support_excerpt": direct_excerpt, "local_context": context, "source_metadata": metadata, "source_fidelity_status": "pending", "external_fact_status": "not_checked" if external_required else "not_required", "external_verification_required": external_required, "review_status": "pending"})
+    return sorted(queue, key=lambda row: (row["theme_claim_ids"][0], row["risk_type"], row["risk_token"].lower()))
 
 
 def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path) -> dict[str, Any]:
-    """Enrich frozen Phase 7.2B records and generate the four human review packages."""
+    """Generate Gate A plus claim-local P0 previews without mutating Phase 7.2A/B facts."""
     before = _tree_hashes(corpus_dir)
     claims = _read_jsonl(theme_dir / "theme_canonical_claims.jsonl")
     relations = _read_jsonl(theme_dir / "theme_claim_relations.jsonl")
@@ -336,21 +477,24 @@ def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path) -> dict[str, An
     verification = _read_jsonl(theme_dir / "verification_queue.jsonl")
     source_claims = _read_jsonl(corpus_dir / "intelligence/source_claims.jsonl")
     evidence = _read_jsonl(corpus_dir / "canonical/evidence.jsonl")
+    sections = _read_jsonl(corpus_dir / "canonical/sections.jsonl")
     source_claim_by_id = {row["claim_id"]: row for row in source_claims}
     evidence_by_id = {row["evidence_id"]: row for row in evidence}
     enriched_claims = [{**row, **_claim_independence(row, source_claim_by_id, evidence_by_id)} for row in claims]
     claim_by_id = {row["theme_claim_id"]: row for row in enriched_claims}
     enriched_insights = [{**row, **_insight_independence(row, claim_by_id)} for row in insights]
-    p0 = _p0_scope(verification, enriched_claims, enriched_insights)
-    _write_jsonl(theme_dir / "theme_canonical_claims.jsonl", enriched_claims)
-    _write_jsonl(theme_dir / "insight_candidates.jsonl", enriched_insights)
+    p0 = _claim_local_p0(enriched_claims, enriched_insights, source_claim_by_id, evidence_by_id, sections)
+    judgment_claim_ids = [row["theme_claim_id"] for row in enriched_claims if row["theme_claim_id"].endswith("claim_008_judgment_and_taste")]
+    missing_judgment_scope = bool(judgment_claim_ids) and not any(any(claim_id in row.get("theme_claim_ids", []) for claim_id in judgment_claim_ids) for row in verification if row.get("priority") == "P0")
+    original_p0_count = sum(row.get("priority") == "P0" for row in verification) + int(missing_judgment_scope)
+    _write_jsonl(theme_dir / "claim_local_p0_verification_queue.jsonl", p0)
     _decision_templates(theme_dir, enriched_claims, relations, enriched_insights, p0)
     views = theme_dir / "views"
     views.mkdir(parents=True, exist_ok=True)
     (views / "theme_claim_review.html").write_text(_claim_review_page(enriched_claims, source_claim_by_id, evidence_by_id), encoding="utf-8")
     (views / "theme_insight_review.html").write_text(_insight_review_page(enriched_insights, claim_by_id, evidence_by_id), encoding="utf-8")
     (views / "theme_relation_review.html").write_text(_relation_review_page(relations, claim_by_id), encoding="utf-8")
-    (views / "p0_verification_review.html").write_text(_verification_review_page(p0, claim_by_id, evidence_by_id), encoding="utf-8")
+    (views / "p0_verification_review.html").write_text(_verification_review_page(p0, claim_by_id, evidence_by_id, active=False), encoding="utf-8")
     reports = theme_dir / "reports"
     reports.mkdir(parents=True, exist_ok=True)
     distribution = {
@@ -364,14 +508,24 @@ def prepare_phase72c_theme(*, theme_dir: Path, corpus_dir: Path) -> dict[str, An
         "# Evidence Independence Report\n\nStatus: **pre-review deterministic inventory**\n\n"
         "Two publication families do not automatically constitute two independent industry observations. Counts below distinguish publication, speaker, organization, domain, and evidence-type diversity.\n\n```json\n"
         + json.dumps(distribution, ensure_ascii=False, indent=2) + "\n```\n", encoding="utf-8")
+    upstream_p0 = [row for row in verification if row.get("priority") == "P0"]
+    local_claim_ids = {claim_id for row in p0 for claim_id in row.get("theme_claim_ids", [])}
+    false_positive_rows = [row for row in upstream_p0 if not set(row.get("theme_claim_ids", [])) & local_claim_ids]
+    covered_upstream_rows = [row for row in upstream_p0 if set(row.get("theme_claim_ids", [])) & local_claim_ids]
+    local_rows_replacing_upstream = [row for row in p0 if any(set(old.get("theme_claim_ids", [])) & set(row.get("theme_claim_ids", [])) for old in covered_upstream_rows)]
+    false_positive_count = len(false_positive_rows)
+    collapsed_duplicate_count = max(0, len(covered_upstream_rows) - len(local_rows_replacing_upstream))
+    total_reduction = max(0, original_p0_count - len(p0))
+    claim_by_id_for_report = {row["theme_claim_id"]: row for row in enriched_claims}
+    false_positive_examples = [{"queue_id": row["queue_id"], "theme_claim_ids": row.get("theme_claim_ids", []), "old_reasons": row.get("reasons", []), "theme_statements": [claim_by_id_for_report[claim_id]["statement"] for claim_id in row.get("theme_claim_ids", []) if claim_id in claim_by_id_for_report]} for row in false_positive_rows[:8]]
     (reports / "human_gate_report.md").write_text(
-        f"# Phase 7.2C Human Gate Report\n\nStatus: **pending human review**\n\n- theme claims awaiting decisions: {len(enriched_claims)}\n- relations awaiting decisions: {len(relations)}\n- insights awaiting decisions: {len(enriched_insights)}\n- P0 verification items awaiting decisions: {len(p0)}\n- accepted assets: 0\n- theme judgment frozen: no\n- publication drafts generated: no\n\nPending records are not accepted automatically.\n", encoding="utf-8")
+        f"# Phase 7.2C.1 Human Gate Workload Report\n\nStatus: **Gate A pending**\n\n- theme claims awaiting Gate A: {len(enriched_claims)}\n- relations awaiting Gate A: {len(relations)}\n- insights awaiting Gate A: {len(enriched_insights)}\n- original P0 count: {original_p0_count}\n- claim-local P0 preview count: {len(p0)}\n- excluded context-derived false positives: {false_positive_count}\n- collapsed duplicate/redundant P0 cards: {collapsed_duplicate_count}\n- total preview workload reduction: {total_reduction}\n- maximum P0 workload reduction: {round(total_reduction / max(1, original_p0_count) * 100, 1)}%\n- estimated verification time saved at 2–4 minutes/card: {total_reduction * 2}–{total_reduction * 4} minutes\n- active P0 after Gate A: pending human decisions; cannot exceed {len(p0)}\n- P0 removed because claims are rejected/deferred/merged away: pending Gate A\n- source-fidelity verification count: pending Gate A\n- external verification pending count: pending Gate A\n- accepted assets: 0\n- theme judgment frozen: no\n\n## False-positive examples\n\n```json\n{json.dumps(false_positive_examples, ensure_ascii=False, indent=2)}\n```\n\nGate A is reviewed first. Claim-local P0 does not block claim review and is activated only for provisionally accepted final statements.\n", encoding="utf-8")
     (reports / "publication_readiness_report.md").write_text(
-        "# Publication Readiness Report\n\nRating: **BLOCKED — human gate incomplete**\n\nThe corpus package is ready for review, but publication candidates must not be generated until all 30 theme claims, 10 relations, 7 insights, and conclusion-changing P0 items have explicit human decisions.\n", encoding="utf-8")
+        "# Publication Readiness Report\n\n- theme_asset_readiness: **blocked** (Gate A incomplete)\n- factual_publication_readiness: **blocked**\n\nGate A precedes verification. External factual verification is distinct from source fidelity and is not required to freeze a clearly provisional theme asset.\n", encoding="utf-8")
     after = _tree_hashes(corpus_dir)
     if before != after:
         raise ValueError("Phase 7.2C preparation modified frozen Phase 7.2A corpus")
-    return {"status": "pending_human_review", "theme_claim_count": len(enriched_claims), "relation_count": len(relations), "insight_count": len(enriched_insights), "p0_verification_count": len(p0), "phase72a_input_unchanged": True, "theme_dir": str(theme_dir)}
+    return {"status": "gate_a_pending", "theme_claim_count": len(enriched_claims), "relation_count": len(relations), "insight_count": len(enriched_insights), "original_p0_count": original_p0_count, "claim_local_p0_count": len(p0), "excluded_false_positive_count": false_positive_count, "collapsed_duplicate_p0_count": collapsed_duplicate_count, "total_p0_workload_reduction": total_reduction, "active_p0_count": None, "phase72a_input_unchanged": True, "phase72b_records_unchanged": True, "theme_dir": str(theme_dir)}
 
 
 def _validate_complete(rows: list[dict[str, Any]], expected: set[str], id_key: str, allowed: set[str], kind: str) -> dict[str, dict[str, Any]]:
@@ -463,7 +617,8 @@ def _accepted_relations(relations: list[dict[str, Any]], decisions: dict[str, di
     for relation in relations:
         decision = decisions[relation["relation_id"]]
         if decision["decision"] == "reject":
-            rejected.append({**relation, "schema_version": SCHEMA_VERSION, "review_status": "rejected", "human_review": decision})
+            rejected_status = "rejected_parent_claim" if decision.get("reviewer_note") == "rejected_parent_claim" else "rejected"
+            rejected.append({**relation, "schema_version": SCHEMA_VERSION, "review_status": rejected_status, "human_review": decision})
             continue
         relation_type = str(decision.get("final_relation_type") or "")
         if relation_type not in RELATION_TYPES:
@@ -513,6 +668,92 @@ def _accepted_insights(insights: list[dict[str, Any]], decisions: dict[str, dict
     return accepted, rejected
 
 
+def _relation_gate_decisions(
+    rows: list[dict[str, Any]], relations: list[dict[str, Any]], claim_mapping: dict[str, list[str]], resolved_at: str,
+) -> tuple[dict[str, dict[str, Any]], set[str]]:
+    by_id = {str(row.get("relation_id") or ""): row for row in rows}
+    expected = {row["relation_id"] for row in relations}
+    if set(by_id) != expected:
+        raise ValueError(f"relation Gate A requires exact record set; missing={len(expected-set(by_id))} extra={len(set(by_id)-expected)}")
+    auto_rejected: set[str] = set()
+    output: dict[str, dict[str, Any]] = {}
+    for relation in relations:
+        row = by_id[relation["relation_id"]]
+        parent_rejected = not claim_mapping.get(relation["source_claim_id"]) or not claim_mapping.get(relation["target_claim_id"])
+        if parent_rejected:
+            auto_rejected.add(relation["relation_id"])
+            output[relation["relation_id"]] = {**row, "decision": "reject", "reviewer": row.get("reviewer") or "system_parent_gate", "reviewed_at": row.get("reviewed_at") or resolved_at, "reviewer_note": row.get("reviewer_note") or "rejected_parent_claim"}
+            continue
+        if row.get("decision") not in RELATION_DECISIONS:
+            raise ValueError(f"relation decision is missing or invalid for accepted parents: {relation['relation_id']}")
+        if not str(row.get("reviewer") or "").strip() or not str(row.get("reviewed_at") or "").strip():
+            raise ValueError(f"relation decision lacks reviewer/reviewed_at: {relation['relation_id']}")
+        output[relation["relation_id"]] = row
+    return output, auto_rejected
+
+
+def finalize_phase72c_gate_a(
+    *, theme_dir: Path, corpus_dir: Path, claim_decisions_path: Path, relation_decisions_path: Path,
+    insight_decisions_path: Path,
+) -> dict[str, Any]:
+    """Materialize provisional assets first, then derive their active claim-local P0."""
+    before = _tree_hashes(corpus_dir)
+    claims = _read_jsonl(theme_dir / "theme_canonical_claims.jsonl")
+    relations = _read_jsonl(theme_dir / "theme_claim_relations.jsonl")
+    insights = _read_jsonl(theme_dir / "insight_candidates.jsonl")
+    claim_decisions = _validate_complete(_read_jsonl(claim_decisions_path), {row["theme_claim_id"] for row in claims}, "theme_claim_id", CLAIM_DECISIONS, "theme claim")
+    insight_decisions = _validate_complete(_read_jsonl(insight_decisions_path), {row["insight_id"] for row in insights}, "insight_id", INSIGHT_DECISIONS, "insight")
+    accepted_claims, rejected_claims, merges, claim_mapping = _accepted_claims(claims, claim_decisions)
+    gate_a_at = max([str(row.get("reviewed_at") or "") for row in [*claim_decisions.values(), *insight_decisions.values()]] or ["1970-01-01T00:00:00Z"])
+    relation_decisions, auto_parent_rejections = _relation_gate_decisions(_read_jsonl(relation_decisions_path), relations, claim_mapping, gate_a_at)
+    accepted_relations, rejected_relations = _accepted_relations(relations, relation_decisions, claim_mapping)
+    accepted_insights, rejected_insights = _accepted_insights(insights, insight_decisions, claim_mapping)
+    for row in accepted_claims:
+        row["review_status"] = "provisionally_accepted"
+    for row in accepted_relations:
+        row["review_status"] = "provisionally_accepted"
+    for row in accepted_insights:
+        row["review_status"] = "provisionally_accepted"
+        row["publishability"] = "not_publishable_before_gate_b"
+    _write_jsonl(theme_dir / "theme_claim_review_decisions.jsonl", claim_decisions.values())
+    _write_jsonl(theme_dir / "relation_review_decisions.jsonl", relation_decisions.values())
+    _write_jsonl(theme_dir / "insight_review_decisions.jsonl", insight_decisions.values())
+    _write_jsonl(theme_dir / "provisionally_accepted_theme_claims.jsonl", accepted_claims)
+    _write_jsonl(theme_dir / "provisionally_rejected_theme_claims.jsonl", rejected_claims)
+    _write_jsonl(theme_dir / "theme_claim_merges.jsonl", merges)
+    _write_jsonl(theme_dir / "provisionally_accepted_relations.jsonl", accepted_relations)
+    _write_jsonl(theme_dir / "provisionally_rejected_relations.jsonl", rejected_relations)
+    _write_jsonl(theme_dir / "provisionally_accepted_insights.jsonl", accepted_insights)
+    _write_jsonl(theme_dir / "provisionally_rejected_insights.jsonl", rejected_insights)
+    source_claims = _read_jsonl(corpus_dir / "intelligence/source_claims.jsonl")
+    evidence = _read_jsonl(corpus_dir / "canonical/evidence.jsonl")
+    sections = _read_jsonl(corpus_dir / "canonical/sections.jsonl")
+    source_claim_by_id = {row["claim_id"]: row for row in source_claims}
+    evidence_by_id = {row["evidence_id"]: row for row in evidence}
+    active_p0 = _claim_local_p0(accepted_claims, accepted_insights, source_claim_by_id, evidence_by_id, sections)
+    _write_jsonl(theme_dir / "active_p0_verification_queue.jsonl", active_p0)
+    external_queue = [{**row, "external_fact_status": "not_checked"} for row in active_p0 if row.get("external_verification_required")]
+    _write_jsonl(theme_dir / "external_verification_queue.jsonl", external_queue)
+    _write_p0_template(theme_dir, active_p0)
+    claim_by_id = {row["theme_claim_id"]: row for row in accepted_claims}
+    (theme_dir / "views/p0_verification_review.html").write_text(_verification_review_page(active_p0, claim_by_id, evidence_by_id, active=True), encoding="utf-8")
+    preview_path = theme_dir / "claim_local_p0_verification_queue.jsonl"
+    preview_count = len(_read_jsonl(preview_path)) if preview_path.exists() else 0
+    removed_count = max(0, preview_count - len(active_p0))
+    reports = theme_dir / "reports"
+    claim_counts = Counter(row["decision"] for row in claim_decisions.values())
+    insight_counts = Counter(row["decision"] for row in insight_decisions.values())
+    relation_counts = Counter("rejected_parent_claim" if row_id in auto_parent_rejections else row["decision"] for row_id, row in relation_decisions.items())
+    (reports / "human_gate_report.md").write_text(
+        "# Phase 7.2C.1 Human Gate Workload Report\n\nStatus: **Gate A complete; Gate B pending**\n\n```json\n" +
+        json.dumps({"claim_decisions": claim_counts, "insight_decisions": insight_counts, "relation_decisions": relation_counts, "provisionally_accepted_claims": len(accepted_claims), "provisionally_accepted_insights": len(accepted_insights), "provisionally_accepted_relations": len(accepted_relations), "claim_local_p0_preview_count": preview_count, "active_p0_count": len(active_p0), "p0_removed_after_gate_a": removed_count, "source_fidelity_verification_count": len(active_p0), "external_verification_pending_count": len(external_queue)}, ensure_ascii=False, indent=2, default=dict) +
+        "\n```\n\nRelations whose parent claims were removed are recorded as `rejected_parent_claim` without additional semantic review.\n", encoding="utf-8")
+    (reports / "publication_readiness_report.md").write_text(f"# Publication Readiness Report\n\n- theme_asset_readiness: **blocked** (Gate B source fidelity pending: {len(active_p0)})\n- factual_publication_readiness: **blocked**\n- external verification pending: {len(external_queue)}\n\nExternal verification does not block a provisional theme freeze, but it blocks unqualified factual publication.\n", encoding="utf-8")
+    if before != _tree_hashes(corpus_dir):
+        raise ValueError("Phase 7.2C Gate A modified frozen Phase 7.2A corpus")
+    return {"status": "gate_a_complete_gate_b_pending", "provisionally_accepted_theme_claim_count": len(accepted_claims), "provisionally_accepted_relation_count": len(accepted_relations), "provisionally_accepted_insight_count": len(accepted_insights), "auto_rejected_parent_relation_count": len(auto_parent_rejections), "claim_local_p0_preview_count": preview_count, "active_p0_count": len(active_p0), "p0_removed_after_gate_a": removed_count, "external_verification_pending_count": len(external_queue), "phase72a_input_unchanged": True}
+
+
 def _write_publication_candidates(theme_dir: Path, claims: list[dict[str, Any]], insights: list[dict[str, Any]]) -> None:
     reports = theme_dir / "reports"
     claim_lines = "\n".join(f'- {row["statement"]} (`{row["theme_claim_id"]}`)' for row in claims)
@@ -524,58 +765,90 @@ def _write_publication_candidates(theme_dir: Path, claims: list[dict[str, Any]],
     _write_jsonl(reports / "xiaohongshu_slices.jsonl", ({"schema_version": SCHEMA_VERSION, "slice_id": f"{THEME_SLUG}.slice_{index:02d}", "title": "执行变便宜后，判断为什么更稀缺？", "body": row["statement"], "supporting_insight_id": row["insight_id"], "status": "publication_candidate_only"} for index, row in enumerate(insights, 1)))
 
 
-def finalize_phase72c_theme(
-    *, theme_dir: Path, corpus_dir: Path, claim_decisions_path: Path, relation_decisions_path: Path,
-    insight_decisions_path: Path, verification_decisions_path: Path,
-) -> dict[str, Any]:
-    """Strictly freeze accepted assets after complete human review and P0 verification."""
+def _qualified_as_view_or_hypothesis(claim: dict[str, Any]) -> bool:
+    status = str(claim.get("epistemic_status") or "")
+    statement = str(claim.get("statement") or "").lower()
+    if status in {"hypothesis", "provisional"}:
+        return True
+    markers = ("according to", "argues that", "suggests that", "questions whether", "may ", "might ", "could ", "待验证", "认为", "推测", "可能")
+    return any(marker in statement for marker in markers)
+
+
+def _validate_verification_decisions(rows: list[dict[str, Any]], p0: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    expected = {row["queue_id"] for row in p0}
+    ids = [str(row.get("queue_id") or "") for row in rows]
+    if len(ids) != len(set(ids)) or set(ids) != expected:
+        raise ValueError(f"Gate B requires exactly the active P0 set; missing={len(expected-set(ids))} extra={len(set(ids)-expected)}")
+    output = {}
+    for row in rows:
+        queue_id = row["queue_id"]
+        source_status = str(row.get("source_fidelity_status") or "")
+        external_status = str(row.get("external_fact_status") or "")
+        if source_status not in SOURCE_FIDELITY_STATUSES or source_status == "pending":
+            raise ValueError(f"active P0 source_fidelity_status is incomplete for {queue_id}: {source_status!r}")
+        if external_status not in EXTERNAL_FACT_STATUSES:
+            raise ValueError(f"invalid external_fact_status for {queue_id}: {external_status!r}")
+        if not str(row.get("reviewer") or "").strip() or not str(row.get("reviewed_at") or "").strip() or not str(row.get("verification_note") or "").strip():
+            raise ValueError(f"active P0 needs reviewer, reviewed_at, and verification_note: {queue_id}")
+        if source_status == "corrected" and not str(row.get("corrected_value") or "").strip():
+            raise ValueError(f"corrected source fidelity needs corrected_value: {queue_id}")
+        output[queue_id] = row
+    return output
+
+
+def finalize_phase72c_theme(*, theme_dir: Path, corpus_dir: Path, verification_decisions_path: Path) -> dict[str, Any]:
+    """Freeze a human-reviewed provisional theme; external facts may remain unchecked."""
     before = _tree_hashes(corpus_dir)
-    claims = _read_jsonl(theme_dir / "theme_canonical_claims.jsonl")
-    relations = _read_jsonl(theme_dir / "theme_claim_relations.jsonl")
-    insights = _read_jsonl(theme_dir / "insight_candidates.jsonl")
-    p0 = _p0_scope(_read_jsonl(theme_dir / "verification_queue.jsonl"), claims, insights)
-    claim_decisions = _validate_complete(_read_jsonl(claim_decisions_path), {row["theme_claim_id"] for row in claims}, "theme_claim_id", CLAIM_DECISIONS, "theme claim")
-    relation_decisions = _validate_complete(_read_jsonl(relation_decisions_path), {row["relation_id"] for row in relations}, "relation_id", RELATION_DECISIONS, "relation")
-    insight_decisions = _validate_complete(_read_jsonl(insight_decisions_path), {row["insight_id"] for row in insights}, "insight_id", INSIGHT_DECISIONS, "insight")
-    verification_decisions = _validate_complete(_read_jsonl(verification_decisions_path), {row["queue_id"] for row in p0}, "queue_id", VERIFICATION_DECISIONS, "P0 verification")
-    for queue_id, decision in verification_decisions.items():
-        if not str(decision.get("verification_note") or "").strip():
-            raise ValueError(f"P0 verification needs a verification_note: {queue_id}")
-        if decision["decision"] == "corrected" and not str(decision.get("corrected_value") or "").strip():
-            raise ValueError(f"corrected P0 verification needs corrected_value: {queue_id}")
-    accepted_claims, rejected_claims, merges, claim_mapping = _accepted_claims(claims, claim_decisions)
-    accepted_relations, rejected_relations = _accepted_relations(relations, relation_decisions, claim_mapping)
-    accepted_insights, rejected_insights = _accepted_insights(insights, insight_decisions, claim_mapping)
-    unresolved_p0 = [row_id for row_id, row in verification_decisions.items() if row["decision"] == "defer_for_external_check"]
-    if unresolved_p0:
-        raise ValueError(f"P0 verification is not complete; deferred={len(unresolved_p0)}")
+    accepted_claims = _read_jsonl(theme_dir / "provisionally_accepted_theme_claims.jsonl")
+    accepted_relations = _read_jsonl(theme_dir / "provisionally_accepted_relations.jsonl")
+    accepted_insights = _read_jsonl(theme_dir / "provisionally_accepted_insights.jsonl")
+    p0 = _read_jsonl(theme_dir / "active_p0_verification_queue.jsonl")
+    verification_decisions = _validate_verification_decisions(_read_jsonl(verification_decisions_path), p0)
+    rejected_source = [queue_id for queue_id, row in verification_decisions.items() if row["source_fidelity_status"] == "rejected"]
+    if rejected_source:
+        raise ValueError(f"source fidelity rejected active accepted claims; return to Gate A: {rejected_source}")
     p0_by_id = {row["queue_id"]: row for row in p0}
+    claim_statuses: dict[str, list[str]] = defaultdict(list)
     for queue_id, decision in verification_decisions.items():
-        if decision["decision"] != "rejected":
-            continue
-        accepted_affected = [accepted_id for original_id in p0_by_id[queue_id].get("theme_claim_ids", []) for accepted_id in claim_mapping.get(original_id, [])]
-        if accepted_affected:
-            raise ValueError(f"P0 verification rejected evidence for accepted claims: {queue_id} -> {accepted_affected}")
-    if not accepted_claims or not accepted_insights:
-        raise ValueError("human gate cannot freeze without at least one accepted claim and insight")
-    _write_jsonl(theme_dir / "theme_claim_review_decisions.jsonl", claim_decisions.values())
-    _write_jsonl(theme_dir / "relation_review_decisions.jsonl", relation_decisions.values())
-    _write_jsonl(theme_dir / "insight_review_decisions.jsonl", insight_decisions.values())
+        for claim_id in p0_by_id[queue_id].get("theme_claim_ids", []):
+            claim_statuses[claim_id].append(decision["source_fidelity_status"])
+    for claim in accepted_claims:
+        statuses = claim_statuses.get(claim["theme_claim_id"], [])
+        claim["verification_status"] = "source_fidelity_corrected" if "corrected" in statuses else "source_fidelity_verified" if statuses else "source_fidelity_not_applicable"
+        claim["review_status"] = "accepted_provisional"
+    for row in accepted_relations:
+        row["review_status"] = "accepted_provisional"
+    for row in accepted_insights:
+        row["review_status"] = "accepted_provisional"
+        row["publishability"] = "provisional_theme_asset_only"
+    external_queue = []
+    for queue_id, queue in p0_by_id.items():
+        decision = verification_decisions[queue_id]
+        if decision["external_fact_status"] in {"not_checked", "insufficient_evidence", "contradicted"}:
+            external_queue.append({**queue, "source_fidelity_status": decision["source_fidelity_status"], "external_fact_status": decision["external_fact_status"], "verification_note": decision["verification_note"], "reviewer": decision["reviewer"], "reviewed_at": decision["reviewed_at"]})
     _write_jsonl(theme_dir / "p0_verification_decisions.jsonl", verification_decisions.values())
     _write_jsonl(theme_dir / "accepted_theme_claims.jsonl", accepted_claims)
-    _write_jsonl(theme_dir / "rejected_theme_claims.jsonl", rejected_claims)
-    _write_jsonl(theme_dir / "theme_claim_merges.jsonl", merges)
     _write_jsonl(theme_dir / "accepted_relations.jsonl", accepted_relations)
-    _write_jsonl(theme_dir / "rejected_relations.jsonl", rejected_relations)
     _write_jsonl(theme_dir / "accepted_insights.jsonl", accepted_insights)
-    _write_jsonl(theme_dir / "rejected_insights.jsonl", rejected_insights)
+    _write_jsonl(theme_dir / "external_verification_queue.jsonl", external_queue)
     manifest = json.loads((theme_dir / "source_manifest.json").read_text(encoding="utf-8"))
-    frozen_at = _now()
+    frozen_at = max(str(row.get("reviewed_at") or "") for row in verification_decisions.values())
+    accepted_claim_by_id = {row["theme_claim_id"]: row for row in accepted_claims}
+    contradicted_count = sum(row["external_fact_status"] == "contradicted" for row in verification_decisions.values())
+    unqualified_unchecked = []
+    qualified_unchecked = []
+    for queue_id, decision in verification_decisions.items():
+        if decision["external_fact_status"] not in {"not_checked", "insufficient_evidence"}:
+            continue
+        affected = [accepted_claim_by_id[claim_id] for claim_id in p0_by_id[queue_id].get("theme_claim_ids", []) if claim_id in accepted_claim_by_id]
+        target = qualified_unchecked if affected and all(_qualified_as_view_or_hypothesis(claim) for claim in affected) else unqualified_unchecked
+        target.append(queue_id)
+    factual_readiness = "blocked" if contradicted_count else "needs_external_verification" if unqualified_unchecked else "ready"
     judgment = {
         "schema_version": SCHEMA_VERSION,
         "theme_slug": THEME_SLUG,
         "judgment_version": "theme_judgment_v1",
-        "status": "human_reviewed_publication_candidate",
+        "status": "human_reviewed_provisional",
         "frozen_at": frozen_at,
         "corpus_snapshot": {"source_corpus": "input/corpora/naval_recent_six", "input_files": manifest.get("input_files", {})},
         "calibrated_statement": "本批Naval及嘉宾语料共同指向一个值得进一步验证的判断：AI降低部分执行成本时，问题选择、架构、验证、现实约束与责任的相对重要性可能上升。",
@@ -584,7 +857,10 @@ def finalize_phase72c_theme(
         "accepted_relation_ids": [row["relation_id"] for row in accepted_relations],
         "unresolved_tensions": [row["statement"] for row in accepted_insights if row.get("insight_type") == "unresolved_tension"],
         "confidence": "provisional_human_reviewed",
-        "evidence_scope": "Six fixed Naval pages; two transcript-bearing publication families; repeated pages are deweighted; no external corroboration.",
+        "theme_asset_readiness": "ready",
+        "factual_publication_readiness": factual_readiness,
+        "externally_unverified_but_qualified_claim_ids": _unique(claim_id for queue_id in qualified_unchecked for claim_id in p0_by_id[queue_id].get("theme_claim_ids", [])),
+        "evidence_scope": "Six fixed Naval pages; two transcript-bearing publication families; repeated pages are deweighted. Source fidelity is human-reviewed; external factual verification is incomplete unless explicitly recorded otherwise.",
         "known_limitations": ["Publication-family diversity is not independent industry validation.", "Most industrial mechanisms originate from one Frontier Founders conversation.", "Live in the Future has no official transcript and supplies no claim support."],
         "predictions_expected_observations": ["If the judgment is robust, later independent sources should report rising verification, architecture, regulatory, or accountability effort as generation costs fall."],
         "conditions_that_would_weaken_or_overturn": ["Independent evidence shows execution cost declines without increased verification or judgment burden.", "Productivity gains are evenly distributed regardless of domain judgment.", "Software scarcity remains the dominant constraint despite abundant generation."],
@@ -592,18 +868,17 @@ def finalize_phase72c_theme(
     (theme_dir / "theme_judgment_v1.json").write_text(json.dumps(judgment, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     revision_path = theme_dir / "revision_history.jsonl"
     revisions = _read_jsonl(revision_path)
-    revisions.append({"schema_version": SCHEMA_VERSION, "revision_id": f"{THEME_SLUG}.revision_{len(revisions)+1:03d}", "created_at": frozen_at, "operation": "phase_7_2c_human_gate_freeze", "accepted_claim_count": len(accepted_claims), "accepted_relation_count": len(accepted_relations), "accepted_insight_count": len(accepted_insights), "review_status": "human_reviewed"})
+    revisions = [row for row in revisions if row.get("operation") != "phase_7_2c_provisional_freeze"]
+    revisions.append({"schema_version": SCHEMA_VERSION, "revision_id": f"{THEME_SLUG}.revision_phase_7_2c_v1", "created_at": frozen_at, "operation": "phase_7_2c_provisional_freeze", "accepted_claim_count": len(accepted_claims), "accepted_relation_count": len(accepted_relations), "accepted_insight_count": len(accepted_insights), "external_verification_pending_count": len(external_queue), "review_status": "human_reviewed_provisional"})
     _write_jsonl(revision_path, revisions)
     reports = theme_dir / "reports"
     reports.mkdir(exist_ok=True)
     insight_lines = "\n".join(f'- {row["statement"]} (`{row["insight_id"]}`)' for row in accepted_insights)
     (reports / "current_judgment_v1.md").write_text(f'# Current Judgment v1\n\n> {judgment["calibrated_statement"]}\n\n## Accepted insights\n\n{insight_lines}\n\n## Evidence scope\n\n{judgment["evidence_scope"]}\n\n## What would weaken it\n\n' + "\n".join(f'- {row}' for row in judgment["conditions_that_would_weaken_or_overturn"]) + "\n", encoding="utf-8")
-    decision_counts = Counter(row["decision"] for row in claim_decisions.values())
-    relation_counts = Counter(row["decision"] for row in relation_decisions.values())
-    insight_counts = Counter(row["decision"] for row in insight_decisions.values())
-    (reports / "human_gate_report.md").write_text("# Phase 7.2C Human Gate Report\n\nStatus: **passed**\n\n```json\n" + json.dumps({"claim_decisions": decision_counts, "relation_decisions": relation_counts, "insight_decisions": insight_counts, "accepted_theme_claim_count": len(accepted_claims), "accepted_relation_count": len(accepted_relations), "accepted_insight_count": len(accepted_insights), "p0_verified_count": len(verification_decisions)}, ensure_ascii=False, indent=2, default=dict) + "\n```\n", encoding="utf-8")
-    (reports / "publication_readiness_report.md").write_text("# Publication Readiness Report\n\nRating: **candidate ready for editorial review; not published**\n\nAll machine-pending assets used by the drafts passed explicit human decisions and conclusion-changing P0 verification. Editorial fact-checking and final source-link review remain required.\n", encoding="utf-8")
-    _write_publication_candidates(theme_dir, accepted_claims, accepted_insights)
+    (reports / "human_gate_report.md").write_text("# Phase 7.2C.1 Human Gate Report\n\nStatus: **provisional theme asset frozen**\n\n```json\n" + json.dumps({"accepted_theme_claim_count": len(accepted_claims), "accepted_relation_count": len(accepted_relations), "accepted_insight_count": len(accepted_insights), "active_p0_count": len(p0), "source_fidelity_completed_count": len(verification_decisions), "external_verification_pending_count": len(external_queue)}, ensure_ascii=False, indent=2) + "\n```\n", encoding="utf-8")
+    (reports / "publication_readiness_report.md").write_text(f"# Publication Readiness Report\n\n- theme_asset_readiness: **ready**\n- factual_publication_readiness: **{factual_readiness}**\n- external verification queue: {len(external_queue)}\n- unqualified external-verification blockers: {len(unqualified_unchecked)}\n- unverified items explicitly framed as speaker views/hypotheses: {len(qualified_unchecked)}\n\n`theme_judgment_v1` is a human-reviewed provisional theme asset. Unchecked facts can enter a publication candidate only when the human final wording explicitly frames them as a speaker view or hypothesis.\n", encoding="utf-8")
+    if factual_readiness == "ready":
+        _write_publication_candidates(theme_dir, accepted_claims, accepted_insights)
     if before != _tree_hashes(corpus_dir):
         raise ValueError("Phase 7.2C finalization modified frozen Phase 7.2A corpus")
-    return {"status": "frozen", "accepted_theme_claim_count": len(accepted_claims), "rejected_theme_claim_count": len(rejected_claims), "theme_claim_merge_count": len(merges), "accepted_relation_count": len(accepted_relations), "rejected_relation_count": len(rejected_relations), "accepted_insight_count": len(accepted_insights), "rejected_or_deferred_insight_count": len(rejected_insights), "p0_verified_count": len(verification_decisions), "publication_readiness": "candidate_ready_for_editorial_review", "theme_judgment": str(theme_dir / "theme_judgment_v1.json")}
+    return {"status": "human_reviewed_provisional", "accepted_theme_claim_count": len(accepted_claims), "accepted_relation_count": len(accepted_relations), "accepted_insight_count": len(accepted_insights), "active_p0_count": len(p0), "source_fidelity_completed_count": len(verification_decisions), "external_verification_pending_count": len(external_queue), "theme_asset_readiness": "ready", "factual_publication_readiness": factual_readiness, "publication_candidates_generated": factual_readiness == "ready", "theme_judgment": str(theme_dir / "theme_judgment_v1.json")}

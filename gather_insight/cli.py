@@ -18,7 +18,7 @@ from .pipeline.phase71_evaluator import evaluate_phase71
 from .pipeline.phase711_human_gate import adapt_phase711_golden_review, finalize_phase711_review, freeze_phase711_golden, generate_phase711_golden_review, generate_phase711_review
 from .pipeline.phase71_workflow import prepare_phase71_canonical, run_phase71_extraction
 from .pipeline.phase72b_workflow import run_phase72b_theme
-from .pipeline.phase72c_human_gate import finalize_phase72c_theme, prepare_phase72c_theme
+from .pipeline.phase72c_human_gate import finalize_phase72c_gate_a, finalize_phase72c_theme, prepare_phase72c_theme
 from .pipeline.review_views import generate_yc_review_views
 from .run_logging import RunLogger
 
@@ -172,12 +172,15 @@ def build_parser() -> argparse.ArgumentParser:
     theme72c_prepare = sub.add_parser("prepare-phase72c-theme", help="Prepare the Phase 7.2C human theme gate without accepting pending records")
     theme72c_prepare.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
     theme72c_prepare.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
-    theme72c_finalize = sub.add_parser("finalize-phase72c-theme", help="Freeze Phase 7.2C from complete human review and P0 verification files")
+    theme72c_gate_a = sub.add_parser("finalize-phase72c-gate-a", help="Materialize provisional Phase 7.2C assets and derive their active claim-local P0")
+    theme72c_gate_a.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
+    theme72c_gate_a.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
+    theme72c_gate_a.add_argument("--claim-decisions", required=True, type=Path)
+    theme72c_gate_a.add_argument("--relation-decisions", required=True, type=Path)
+    theme72c_gate_a.add_argument("--insight-decisions", required=True, type=Path)
+    theme72c_finalize = sub.add_parser("finalize-phase72c-theme", help="Freeze a provisional theme after active P0 source-fidelity review")
     theme72c_finalize.add_argument("--theme-dir", type=Path, default=Path("knowledge/themes/ai_execution_commoditization_judgment_scarcity"))
     theme72c_finalize.add_argument("--corpus-dir", type=Path, default=Path("input/corpora/naval_recent_six"))
-    theme72c_finalize.add_argument("--claim-decisions", required=True, type=Path)
-    theme72c_finalize.add_argument("--relation-decisions", required=True, type=Path)
-    theme72c_finalize.add_argument("--insight-decisions", required=True, type=Path)
     theme72c_finalize.add_argument("--verification-decisions", required=True, type=Path)
     return parser
 
@@ -447,14 +450,25 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    if args.command == "finalize-phase72c-theme":
+    if args.command == "finalize-phase72c-gate-a":
         try:
-            result = finalize_phase72c_theme(
+            result = finalize_phase72c_gate_a(
                 theme_dir=args.theme_dir,
                 corpus_dir=args.corpus_dir,
                 claim_decisions_path=args.claim_decisions,
                 relation_decisions_path=args.relation_decisions,
                 insight_decisions_path=args.insight_decisions,
+            )
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            print(f"Phase 7.2C Gate A finalization failed: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "finalize-phase72c-theme":
+        try:
+            result = finalize_phase72c_theme(
+                theme_dir=args.theme_dir,
+                corpus_dir=args.corpus_dir,
                 verification_decisions_path=args.verification_decisions,
             )
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
